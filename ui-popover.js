@@ -572,7 +572,14 @@
         var stale = !(e.btn && e.btn.isConnected !== false && e.btn.ownerDocument && e.btn.ownerDocument.contains(e.btn));
         an(e);
         if (stale && e.pop && e.pop.parentNode) e.pop.parentNode.removeChild(e.pop);
-        if (stale) delete REG[id];
+        /* CHỈ xoá bản ghi đã mất nội dung. Bản ghi do footnote()/tip() tạo ra
+           có `body` (nội dung popover) nhưng `btn === null` cho tới khi
+           bind() gắn nút. Trước đây `stale` được tính cho mọi `btn === null`
+           nên closeAll() xoá sạch registry mỗi lần đổi màn — nút còn trên DOM
+           nhưng REG rỗng, bấm (i) không mở được (đo được: 11 → 0, chỉ 3 nút
+           sinh qua UIPop.tip() còn sống sót). Giữ lại bản ghi có body; nó rẻ
+           và tự tái sinh theo id khi màn vẽ lại. */
+        if (stale && (e.body == null || e.body === '')) delete REG[id];
       }
       return true;
     } catch (err) { return false; }

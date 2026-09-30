@@ -39,7 +39,12 @@
     { ten: 'moigioi',  tenHienThi: 'Chi tiết môi giới',     ma: 'MH02' },
     { ten: 'canhan',   tenHienThi: 'KPI của tôi',           ma: 'MH03' },
     { ten: 'khoi',     tenHienThi: 'Tổng hợp khối',         ma: 'MH04' },
-    { ten: 'hoahong',  tenHienThi: 'Hoa hồng & PQL',        ma: 'MH05' }
+    { ten: 'hoahong',  tenHienThi: 'Hoa hồng & PQL',        ma: 'MH05' },
+    /* MH06 phải CÓ ở SCREEN_LIST: đây là danh sách trắng để go()/
+     * registerScreen() chấp nhận tên màn (xem dòng 772 và 857) — thiếu nó thì
+     * tab duno không bao giờ mở được. File màn vẫn nạp SAU app.js và tự
+     * đăng ký bằng App.registerScreen (xem hookApp trong screen-duno.js). */
+    { ten: 'duno',     tenHienThi: 'Dư nợ đang quản lý',   ma: 'MH06' }
   ];
   var SCREEN_NAMES = SCREEN_LIST.map(function (s) { return s.ten; });
 
@@ -1155,11 +1160,35 @@
     if (main) main.setAttribute('data-screen', state.screen);
   }
 
-  function render() {
-    var k = currentKey() + '|' + state.kyId;
-    try {
-      renderScreenContainers();
-      renderHeader();
+  /** Xoá HTML cua các màn KHONG phai man dang xem.
+     *
+     *  LY DO (30/09/2026): app chi toggle `hidden`, khong `innerHTML=''`, nen khi
+     *  doi nguoi/ky cac section da render truoc do van giu ma cua nguoi CU.
+     *  Do la RO RI DU LIEU NGOAI PHAM VI trong DOM: tren man khong thay, nhung
+     *  mo DevTools / View Source / Ctrl+F van doc duoc (test
+     *  `tests/cayquanly_check.py` muc D4/D5 bat duoc, va `scratch/vleak.py`
+     *  tai hien lai: MG001 (pham vi 1 ma) van thay MG002..MG010 trong
+     *  `screen-canhan` va `screen-khoi`).
+     *
+     *  CHI goi khi DOI nguoi/doi ky — trong `renderScreenContainers()` dung
+     *  `hidden` nhan duoc roi. Neu xoa o moi lan render thi bang duoc danh
+     *  tinh lai khong nua (ma hien thi se nhay), va lai ton them mot lan paint.
+     */
+    function lamSachManKhongXem() {
+      var secs = document.querySelectorAll('main#main .screen');
+      Array.prototype.forEach.call(secs, function (s) {
+        if (s.getAttribute('data-screen') === state.screen) return;
+        if (!s.hasChildNodes()) return;
+        s.innerHTML = '';
+      });
+    }
+
+    function render() {
+      var k = currentKey() + '|' + state.kyId;
+      try {
+        lamSachManKhongXem();
+        renderScreenContainers();
+        renderHeader();
       renderTabs();
       renderKySwitch();
       renderUserSwitch();

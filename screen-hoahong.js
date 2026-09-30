@@ -181,10 +181,22 @@
     var h = HH();
     return (h && h.quan_ly && h.quan_ly[maMg]) ? h.quan_ly[maMg] : null;
   }
+  /* Tra tỷ lệ theo chức danh. Nguồn khai báo CÓ HAI DẠNG:
+   *   - map chức danh -> tỷ lệ: ty_le_hh_giao_dich, ty_le_hhdn,
+   *     ty_le_pql_truc_tiep, ty_le_pql_gian_tiep
+   *   - MỘT SỐ áp dụng cho mọi cấp: ty_le_pql_gd_khoi (0.005 — số, KHÔNG phải
+   *     object). Tra theo m[chucDanh] trên số sẽ ra undefined → hiển thị 0%.
+   * Nay nhận cả hai dạng. */
   function rate(mapName, chucDanh, dflt) {
     var h = HH();
     var m = h && h[mapName];
+    if (isNum(m)) return m;                 /* dạng số áp dụng chung */
     if (m && isNum(m[chucDanh])) return m[chucDanh];
+    if (m && chucDanh == null) {
+      /* GĐ Khối không khoá theo chức danh: lấy số duy nhất nếu map chỉ có 1 mục. */
+      var ks = Object.keys(m);
+      if (ks.length === 1 && isNum(m[ks[0]])) return m[ks[0]];
+    }
     return dflt == null ? 0 : dflt;
   }
   function tranPql() {
@@ -607,7 +619,10 @@
     var C = CH();
     var h = [];
 
-    h.push('<div class="card hh-sec">');
+    /* data-hh-card="t1" — neo để paintTables() tìm đúng card này khi người
+     * dùng đang gõ tìm kiếm. KHÔNG đánh số theo vị trí: vùng TẠM TÍNH có
+     * thể không dựng (thiếu ma_mg) → chỉ số card lệch → sửa nhầm card. */
+    h.push('<div class="card hh-sec" data-hh-card="t1">');
     h.push('  <div class="card-head">');
     h.push('    <div><div class="card-title">1 · Hoa hồng phí giao dịch</div>');
     h.push('      <div class="card-sub">Đơn vị: cột <b>Giá trị giao dịch</b> tính bằng <b>TỶ đồng</b>; phí, phí trả sở, phí Net và hoa hồng tính bằng <b>TRIỆU đồng</b> (trừ cột tỷ lệ) · mỗi dòng là 1 khách hàng của môi giới đang xem · bấm đầu cột để sắp xếp. ' +
@@ -729,7 +744,7 @@
     var list = sortList(filterQ(rs, s.q), s);
     var h = [];
 
-    h.push('<div class="card hh-sec">');
+    h.push('<div class="card hh-sec" data-hh-card="t2">');
     h.push('  <div class="card-head">');
     h.push('    <div><div class="card-title">2 · Hoa hồng dư nợ (HHDN)</div>');
     h.push('      <div class="card-sub">Đơn vị: Dư nợ tính bằng <b>TỶ VNĐ</b>; Lãi vay và hoa hồng tính bằng <b>TRIỆU VNĐ</b> · lãi suất hiển thị dạng %/năm · ' +
@@ -908,10 +923,8 @@
   function tyLePql(maMg, kyId, chucDanh) {
     var pk = pqlKy(maMg, kyId);
     if (pk && isNum(pk.ty_le_pql_ap_dung)) return pk.ty_le_pql_ap_dung;
-    var h = HH();
     var ql = quanLy(maMg);
     if (ql && String(ql.cap_quan_ly || '').indexOf('Khối') >= 0) return rate('ty_le_pql_gd_khoi', null, 0);
-    var ttdt = rate('ty_le_pql_gd_khoi', null, 0);
     var gdt = rate('ty_le_pql_gian_tiep', chucDanh, 0);
     if (isNum(gdt) && gdt > 0) return gdt;
     return rate('ty_le_pql_truc_tiep', chucDanh, 0);
@@ -1420,19 +1433,39 @@
     });
   }
 
-  /* Vẽ lại riêng bảng tương ứng khi đang gõ tìm kiếm (không mất focus). */
+  /* Vẽ lại riêng bảng tương ứng khi đang gõ tìm kiếm (không mất focus).
+   *
+   * SỬA: trước đây lấy card theo CHỈ SỐ (cards[1] / cards[2]). Chỉ số này
+   * đúng chỉ khi vùng TẠM TÍNH luôn dựng; khi phần đó không có (thiếu ma_mg)
+   * hoặc vùng điểm mở không render, card bị thay nhầm → mất hẳn khối TẠM TÍNH
+   * (6 ô biến mất) và nhân bản id="hhQ1" (2 input cùng id). Nay neo theo
+   * data-hh-card do phan1/phan2 tự gắn. */
   function paintTables(tbl) {
     if (!lastEl) return refresh();
     var maMg = maMgXem(lastCtx);
     var ky = kyId(lastCtx);
-    var cards = lastEl.querySelectorAll('.card');
-    var idx = (tbl === '1') ? 1 : 2;      /* card 0 = khung tiêu đề */
-    var host = cards[idx];
-    if (!host) return refresh();
+    var anchor = (tbl === '1') ? 't1' : 't2';
+    var host = lastEl.querySelector('.card[data-hh-card="' + anchor + '"]');
+    /* Không tìm thấy card (màn chưa dựng / đã đổi bố cục) → vẽ lại cả màn. */
+    if (!host || !host.parentNode) return refresh();
     var tmp = global.document.createElement('div');
     tmp.innerHTML = (tbl === '1') ? phan1(maMg, ky) : phan2(maMg, ky);
     var neu = tmp.firstChild;
-    if (neu && host.parentNode) host.parentNode.replaceChild(neu, host);
+    /* tmp.firstChild có thể là text node trắng do thụt lề trong HTML mẫu. */
+    while (neu && neu.nodeType !== 1) neu = neu.nextSibling;
+    if (!neu) return refresh();
+    /* Giữ con trỏ nhập: sau khi thay node, focus lại vào ô tìm kiếm tương ứng
+     * (node mới chứa ô mới, nên phải đặt lại sau khi thay). */
+    var canFocus = global.document.activeElement &&
+      global.document.activeElement.id === (tbl === '1' ? 'hhQ1' : 'hhQ2');
+    var pos = canFocus ? global.document.activeElement.selectionStart : null;
+    host.parentNode.replaceChild(neu, host);
+    if (canFocus) {
+      var box = neu.querySelector((tbl === '1' ? '#hhQ1' : '#hhQ2'));
+      if (box && typeof box.focus === 'function') {
+        try { box.focus(); if (pos != null) box.setSelectionRange(pos, pos); } catch (e) { /* im lặng */ }
+      }
+    }
   }
 
   /* Đăng ký vào App nếu app.js đã có màn hình này trong danh sách */

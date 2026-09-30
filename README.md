@@ -15,7 +15,7 @@ index.html
 
 Không cần mạng. Chart.js 4.4.7 nằm sẵn ở `vendor/chart.umd.js`.
 
-## 5 màn hình
+## 6 màn hình
 
 | Tab | Nội dung |
 |---|---|
@@ -24,6 +24,7 @@ Không cần mạng. Chart.js 4.4.7 nằm sẵn ở `vendor/chart.umd.js`.
 | KPI của tôi | Điểm đạt / điểm chuẩn, 6 tỷ trọng chấm điểm |
 | Tổng hợp khối | So sánh 4 khối, 6 biểu đồ |
 | Hoa hồng & PQL | Tạm tính 6 ô + HH phí giao dịch + HHDN + PQL theo vai trò |
+| Dư nợ đang quản lý | Dư nợ KH chi tiết theo phạm vi quản lý, 2 biểu đồ (theo ngày / cơ cấu) |
 
 ## Ô TẠM TÍNH (6 ô, màn Hoa hồng & PQL)
 

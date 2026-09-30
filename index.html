@@ -31,6 +31,7 @@
   <button class="tab" data-screen="canhan">KPI của tôi</button>
   <button class="tab" data-screen="khoi">Tổng hợp khối</button>
   <button class="tab" data-screen="hoahong">Hoa hồng &amp; PQL</button>
+  <button class="tab" data-screen="duno">Dư nợ đang quản lý</button>
   <div class="tab-spacer"></div>
   <div class="ky-switch" id="kySwitch"></div>
 </nav>
@@ -41,6 +42,7 @@
   <section class="screen" data-screen="canhan"  id="screen-canhan"></section>
   <section class="screen" data-screen="khoi"    id="screen-khoi"></section>
   <section class="screen" data-screen="hoahong" id="screen-hoahong"></section>
+  <section class="screen" data-screen="duno"    id="screen-duno"></section>
 </main>
 
 <footer class="footer">
@@ -56,6 +58,9 @@
 <script src="ui-popover.js"></script>
 <script src="kh-data.js"></script>
 <script src="hh-data.js"></script>
+<!-- MH06 Dư nợ đang quản lý: duno-data.js phải nạp TRƯỚC screen-duno.js vì
+     màn đọc window.DUNO ngay khi render. -->
+<script src="duno-data.js"></script>
 <script src="data.js"></script>
 <script src="screen-phong.js"></script>
 <script src="screen-moigioi.js"></script>
@@ -69,5 +74,6 @@
 <script src="app.js"></script>
 <script src="screen-hoahong.js"></script>
 <script src="screen-hoahong-chart.js"></script>
+<script src="screen-duno.js"></script>
 </body>
 </html>

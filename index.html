@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KPI Môi giới — Bản demo giao diện</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="logo">TPS</span>
+    <div>
+      <h1>Theo dõi KPI Môi giới</h1>
+      <p class="sub" id="kyHienTai">—</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="badge-demo" title="Số liệu giả, chỉ để trình diễn giao diện">DỮ LIỆU GIẢ</div>
+    <div class="user-chip">
+      <div class="user-name" id="userName">—</div>
+      <div class="user-role" id="userRole">—</div>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab" data-screen="phong">Phòng của tôi</button>
+  <button class="tab" data-screen="moigioi">Chi tiết môi giới</button>
+  <button class="tab" data-screen="canhan">KPI của tôi</button>
+  <button class="tab" data-screen="khoi">Tổng hợp khối</button>
+  <button class="tab" data-screen="hoahong">Hoa hồng &amp; PQL</button>
+  <div class="tab-spacer"></div>
+  <div class="ky-switch" id="kySwitch"></div>
+</nav>
+
+<main id="main">
+  <section class="screen" data-screen="phong"    id="screen-phong"></section>
+  <section class="screen" data-screen="moigioi" id="screen-moigioi"></section>
+  <section class="screen" data-screen="canhan"  id="screen-canhan"></section>
+  <section class="screen" data-screen="khoi"    id="screen-khoi"></section>
+  <section class="screen" data-screen="hoahong" id="screen-hoahong"></section>
+</main>
+
+<footer class="footer">
+  <span id="footerNguon">—</span>
+  <span class="dot">·</span>
+  <span>Cập nhật lần cuối: <b id="footerCapNhat">—</b></span>
+  <span class="dot">·</span>
+  <span>Thang quy đổi và điểm chuẩn: <b>PTSP chốt 30/09/2026</b> — 1 triệu phí net = 10 điểm FKP · 1 triệu lãi vay = 1 điểm · 100 triệu doanh số trái phiếu = 10 điểm</span>
+</footer>
+
+<script src="vendor/chart.umd.js"></script>
+<script src="charts.js"></script>
+<script src="ui-popover.js"></script>
+<script src="kh-data.js"></script>
+<script src="hh-data.js"></script>
+<script src="data.js"></script>
+<script src="screen-phong.js"></script>
+<script src="screen-moigioi.js"></script>
+<script src="screen-canhan.js"></script>
+<script src="screen-canhan-kh.js"></script>
+<script src="screen-khoi.js"></script>
+<script src="screen-khoi-chart.js"></script>
+<!-- Màn Hoa hồng & PQL: hh-data.js phải nạp trước screen-hoahong*.js.
+     Module tự đăng ký bằng App.registerScreen('hoahong', ...) nên app.js
+     phải CÓ MẶT trước khi chúng chạy — đặt app.js ở đây, trước 2 module. -->
+<script src="app.js"></script>
+<script src="screen-hoahong.js"></script>
+<script src="screen-hoahong-chart.js"></script>
+</body>
+</html>

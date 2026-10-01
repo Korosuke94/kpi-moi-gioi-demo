@@ -339,8 +339,7 @@
     tong1DefTien = tong1.reduce(function (a, t) { return a + t.tongTien; }, 0);
     tong1DefDiem = tong1.reduce(function (a, t) { return a + t.tongDiem; }, 0);
 
-    /* Cột ngang xếp chồng theo giá trị thuần (triệu VNĐ) — C1 giữ toàn bộ
-       vùng lưới (donut C2 đã bỏ: thừa so với chips bên dưới + trùng màu C1) */
+    /* Cột ngang xếp chồng theo giá trị thuần (triệu VNĐ) */
     h.push('      <div>');
     h.push(C ? C.box('khkC1', Math.max(240, top.length * 34 + 70),
                      'Top ' + top.length + ' khách hàng theo doanh thu',
@@ -350,8 +349,11 @@
     h.push('        ' + khoi1TongHTML());
     h.push('      </div>');
 
-    /* Cơ cấu theo NHÓM KHOẢN THU (giá trị thuần triệu VNĐ) — chips */
+    /* Vòng tròn: 3 NHÓM KHOẢN THU (giá trị thuần triệu VNĐ) */
     h.push('      <div>');
+    h.push(C ? C.box('khkC2', 240, 'Cơ cấu doanh thu theo nhóm khoản thu',
+                     'Tổng ' + n1(tongTienAll) + ' triệu VNĐ từ ' + n0(rs.length) + ' khách')
+              : '<div class="chart-empty">' + DASH + '</div>');
     h.push('        <div class="khk-chips">');
     var gN = gomNhomTien(rs);
     for (var j = 0; j < NHOM.length; j++) {
@@ -687,11 +689,23 @@
       }
     }
 
-    /* (donut C2 đã bỏ — xem lịch sử commit) */
-
-    /* (biểu đồ C3 đã bỏ 28/10 — trùng hoàn toàn bảng [2] ngay trên:
-       cùng 3 nhóm khoản thu, cùng giá trị kỳ trước/kỳ này; bảng đủ
-       thông tin hơn: có chênh lệch + tăng trưởng + sortable) */
+    /* 1b — vòng tròn theo 3 NHÓM KHOẢN THU (giá trị thuần = triệu VNĐ) */
+    if (rs.length) {
+      var gN = gomNhomTien(rs);
+      var tongTienAll = rs.reduce(function (a, r) { return a + doanhThuTong(r); }, 0);
+      var c2 = global.document.getElementById('khkC2');
+      if (c2) {
+        try {
+          C.donut('khkC2',
+            NHOM.map(function (n) { return n.ten; }),
+            gN.map(function (v) { return Math.round(v * 100) / 100; }),
+            {
+              label: 'Doanh thu', centerText: n1(tongTienAll), centerSub: 'triệu VNĐ', unit: 'triệu VNĐ',
+              colorVar: NHOM.map(function (n) { return n.c; })
+            });
+        } catch (e) { warn('C2', e); }
+      }
+    }
   }
 
   function warn(tag, e) {

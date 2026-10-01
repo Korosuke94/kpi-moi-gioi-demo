@@ -317,6 +317,30 @@
         '" text-anchor="end">Điểm chuẩn ' + fmtNum(chuan[0], 0) + '</text>');
     }
 
+    /* Đường xu hướng (line overlay) nối tổng điểm thực tế các kỳ —
+       vẽ SAU cột và sau đường chuẩn để nằm trên cùng. Kỳ chưa có số
+       liệu bị nhảy qua (polyline nối hai điểm hợp lệ kế cận), KHÔNG
+       vẽ đoạn qua ô sọc. Màu đặt bằng style="..." chứ không phải
+       stroke="...": var() trong thuộc tính trình bày SVG không được
+       trình duyệt phân giải. */
+    var pts = [];
+    for (var l = 0; l < n; l++) {
+      if (!isNum(diem[l])) continue;
+      var cx = padL + slot * l + slot / 2;
+      var cy = yOf(diem[l]);
+      pts.push(cx.toFixed(1) + ',' + cy.toFixed(1));
+      s.push('<circle class="trend-pt" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) +
+        '" r="2.6" style="fill:var(--brand-2);stroke:var(--surface-1)" stroke-width="1">' +
+        '<title>' + esc(ls[l].ky_nhan) + ' — Tổng điểm: ' + numOrNull(diem[l], 0) + ' điểm' +
+        (isNum(chuan[l]) ? ' · Chuẩn ' + numOrNull(chuan[l], 0) + ' điểm' : '') +
+        '</title></circle>');
+    }
+    if (pts.length > 1) {
+      s.push('<polyline class="trend-line" points="' + pts.join(' ') + '" fill="none" ' +
+        'style="stroke:var(--brand-2)" stroke-width="2" stroke-linejoin="round" ' +
+        'stroke-linecap="round" opacity="0.9"/>');
+    }
+
     /* nhãn kỳ trục X: rút gọn dd/mm */
     for (var e = 0; e < n; e++) {
       s.push('<text class="axis" x="' + (padL + slot * e + slot / 2).toFixed(1) + '" y="' + (H - 24) +
@@ -360,19 +384,46 @@
     var ct = row.chi_tieu || [];
     var h = ['<div class="card">',
       '<div class="card-head"><div class="card-title">Cơ cấu điểm</div>',
-      fn('Cách tính', '<div class="pop-h">Cách tính điểm nhóm</div>' +
+      fn('Cách tính · Đơn vị · Chênh lệch',
+        '<div class="pop-h">Cách tính điểm nhóm</div>' +
         '<div class="pop-f"><b>Điểm nhóm</b> = (Thực tế ÷ Chỉ tiêu) × Trọng số</div>' +
         '<div class="pop-f">Tổng các nhóm là tổng điểm của môi giới.</div>' +
-        '<div class="pop-f">Thực tế và Chỉ tiêu là số gốc; điểm nhóm mới là phần đóng góp sau trọng số.</div>',
-        'mg-diem-nhom') + '</div>'];
+        '<div class="pop-f">Thực tế và Chỉ tiêu là số gốc; điểm nhóm mới là phần đóng góp sau trọng số.</div>' +
+        '<div class="pop-f"><b>Đơn vị lẫn lộn theo dòng</b> — cột "Thực tế" và "Mục tiêu" in theo ' +
+        'đơn vị riêng của từng dòng (số "điểm" với FKP, số "khách hàng" với KH mở mới / KH active); ' +
+        'dòng nào khai báo đơn vị gì thì ghi ngay dưới tên chỉ tiêu. Không đọc một đơn vị cho cả bảng.</div>' +
+        '<div class="pop-f"><b>Chênh lệch</b> = Thực tế − Chỉ tiêu, là số TUYỆT ĐỐI và CÙNG ĐƠN VỊ ' +
+        'với hai cột bên cạnh (không phải %): âm (đỏ) là thiếu, dương (xanh) là vượt, ' +
+        '"Đúng chỉ tiêu" là bằng 0. So sánh mức độ đạt phải nhìn cột "Tỷ lệ" (%).</div>',
+        'mg-diem-nhom') + '</div>',
+      '<div class="card-sub">Đơn vị: điểm (FKP) · % (tỷ lệ) — theo từng dòng</div>'];
     if (!ct.length) {
       h.push('<div class="card-body"><p class="muted">Kỳ này không có chỉ tiêu nào được gán điểm.</p></div></div>');
       return h.join('');
     }
     h.push('<div class="table-wrap"><table class="table"><thead><tr>' +
-      '<th>Chỉ tiêu</th><th class="num">Thực tế</th><th class="num">Chỉ tiêu</th>' +
+      '<th>Chỉ tiêu</th><th class="num">Thực tế</th><th class="num">Mục tiêu</th>' +
       '<th class="num">Chênh lệch</th><th class="num">Tỷ lệ</th><th class="num">Trọng số</th>' +
       '<th class="num">Điểm nhóm</th></tr></thead><tbody>');
+    /* Dòng nhóm gộp theo họ đơn vị (style.css: .group-row). Trọng số
+       lấy từ dữ liệu (cộng trọng số các dòng thuộc nhóm) — FKP 70-80%,
+       nhóm tỷ lệ 10-20% tùy chức danh, KHÔNG hardcode 70/30. */
+    function diemNhom(loai) {
+      var t = 0, co = false;
+      for (var i = 0; i < ct.length; i++) {
+        if ((loai === 'fkp') === (ct[i].ma_chi_tieu === 'FKP')) {
+          if (isNum(ct[i].trong_so)) { t += ct[i].trong_so; co = true; }
+        }
+      }
+      return co ? pctText(t, 0) : '—';
+    }
+    function dongNhom(nhan, loai) {
+      return '<tr class="group-row"><td colspan="7">' +
+        esc(nhan) + ' <span class="muted" style="font-weight:400;text-transform:none">' +
+        '(trọng số ' + diemNhom(loai) + ')</span></td></tr>';
+    }
+    h.push(dongNhom('Nhóm FKP (điểm)', 'fkp'));
+    h.push(dongNhom('Nhóm tỷ lệ (khách hàng)', 'tyle'));
     for (var i = 0; i < ct.length; i++) {
       var c = ct[i];
       h.push('<tr>');
@@ -385,6 +436,22 @@
       h.push('<td class="num">' + valPct(c.trong_so, 0) + '</td>');
       h.push('<td class="num strong">' + val(c.diem_nhom, 2) + '</td>');
       h.push('</tr>');
+    }
+    /* Footer tổng: trọng số luôn cộng được (lấy từ dữ liệu);
+       tổng điểm nhóm chỉ in khi mọi dòng đều có điểm. */
+    var tongTs = 0, coTs = false, diemOk = true, tongDiem = 0;
+    for (var k = 0; k < ct.length; k++) {
+      if (isNum(ct[k].trong_so)) { tongTs += ct[k].trong_so; coTs = true; }
+      if (isNum(ct[k].diem_nhom)) tongDiem += ct[k].diem_nhom;
+      else diemOk = false;
+    }
+    var foot = [];
+    if (coTs) foot.push('Tổng trọng số ' + pctText(tongTs, 0));
+    if (diemOk) foot.push('Tổng điểm nhóm ' + fmtNum(tongDiem, 2));
+    if (foot.length) {
+      h.push('<tr class="sub-row"><td><b>' + foot.join(' · ') + '</b></td>' +
+        '<td class="num"></td><td class="num"></td><td class="num"></td>' +
+        '<td class="num"></td><td class="num"></td><td class="num"></td></tr>');
     }
     h.push('</tbody></table></div>');
     h.push('<div class="card-foot">Cột “Chênh lệch” = Thực tế − Chỉ tiêu, tuyệt đối và ' +
@@ -506,7 +573,9 @@
       '<div class="card-head"><div class="card-title">Tổng điểm theo kỳ so với điểm chuẩn</div>',
       fn('Cách đọc', '<div class="pop-h">Cách đọc biểu đồ theo kỳ</div>' +
         '<div class="pop-f"><b>Cột</b> = tổng điểm quy đổi của kỳ đó (điểm).</div>' +
-        '<div class="pop-f"><b>Đường ngang</b> = điểm chuẩn của kỳ.</div>' +
+        '<div class="pop-f"><b>Đường ngang nét đứt</b> = điểm chuẩn của kỳ.</div>' +
+        '<div class="pop-f"><b>Đường xu hướng tím</b> = tổng điểm thực tế nối các kỳ — ' +
+        'nhìn nghiêng lên là điểm cải thiện qua các kỳ.</div>' +
         '<div class="pop-f">Cột vượt đường là kỳ đạt chuẩn; cột nằm dưới đường là kỳ chưa đạt.</div>',
         'mg-theo-ky') + '</div>'];
     if (!ls.length) {
@@ -521,7 +590,9 @@
       '<span class="legend-item"><i class="legend-swatch" style="background:var(--muted)"></i>Bằng chuẩn</span>' +
       '<span class="legend-item"><i class="legend-swatch" style="background:repeating-linear-gradient(45deg,' +
       'var(--surface-3),var(--surface-3) 3px,var(--border-strong) 3px,var(--border-strong) 6px)"></i>' +
-      'Chưa có dữ liệu</span></div>');
+      'Chưa có dữ liệu</span>' +
+      '<span class="legend-item"><i class="legend-swatch" style="background:var(--brand-2)"></i>' +
+      'Đường xu hướng</span></div>');
     h.push('</div>');
 
     h.push('<div class="table-wrap"><table class="table"><thead><tr>' +
@@ -578,13 +649,23 @@
         'màn hình không thay số chưa có bằng 0.</p></div></div>';
     }
 
+    /* Thu gọn thành card <details> — mặc định đóng, badge đếm số
+       trường thiếu trong <summary>. Thuần HTML, không thêm JS.
+       Nút (i) nằm TRONG summary để luôn nhìn thấy (và bấm được)
+       khi card đang đóng; bindEvents chặn hành vi mặc định của
+       <summary> khi bấm (i) để chỉ mở popover, không bật card. */
     var h = ['<div class="card">',
-      '<div class="card-head"><div class="card-title">Chưa có nguồn dữ liệu</div>',
+      '<details class="nguon-details">',
+      '<summary class="card-head nguon-summary">' +
+      '<div class="card-title">Chưa có nguồn dữ liệu</div>' +
       fn('Quy ước hiển thị', '<div class="pop-h">Quy ước khi thiếu dữ liệu</div>' +
         '<div class="pop-f">Trường đang <b>null</b> hiển thị "—" chứ không thay bằng 0.</div>' +
         '<div class="pop-f">Lý do: chưa có giao dịch phát sinh trong kỳ, hoặc FLEX chưa có mã báo cáo tương ứng.</div>' +
         '<div class="pop-f">Dùng "—" giúp phân biệt "không có giá trị" với "giá trị bằng 0".</div>',
-        'mg-null') + '</div>',
+        'mg-null') +
+      '<span class="badge warn">' + ds.length + ' trường thiếu</span>' +
+      '<span class="muted" style="font-weight:400">bấm để mở rộng</span>' +
+      '</summary>',
       '<div class="table-wrap"><table class="table"><thead><tr>' +
       '<th>Trường</th><th class="num">Giá trị</th><th>Lý do chưa có</th>' +
       '</tr></thead><tbody>'];
@@ -596,7 +677,7 @@
     h.push('</tbody></table></div>');
     h.push('<div class="card-foot">Màn hình không thay số chưa có nguồn bằng 0 — ' +
       '0 là một giá trị đo được, “—” là chưa có số liệu.</div>');
-    h.push('</div>');
+    h.push('</details></div>');
     return h.join('');
   }
 
@@ -743,6 +824,16 @@
     el.addEventListener('click', function (ev) {
       var t = ev.target;
       if (!t || !t.closest) return;
+
+      /* Nút (i) nằm trong <summary> của card collapsible:
+         preventDefault() hủy hành vi mặc định bật/tắt
+         của <summary> — chỉ mở popover. KHÔNG
+         stopPropagation(): UIPop có listener ở document
+         (bubble) mới là nơi mở popover. */
+      if (t.closest('.kpi-tip') && t.closest('summary')) {
+        ev.preventDefault();
+        return;
+      }
 
       var back = t.closest('[data-back]');
       if (back) {

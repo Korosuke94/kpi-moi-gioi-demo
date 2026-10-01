@@ -668,6 +668,16 @@ div.grid, section.grid { display: grid; gap: var(--sp-4); }
 .table tbody tr.row-active td:nth-child(1), .table tbody tr.row-active td:nth-child(2) { background: var(--row-active); }
 .table tfoot td:nth-child(1), .table tfoot td:nth-child(2) { z-index: 4; background: var(--surface-2); }
 
+/* ===== .tbl-chuan — chuẩn bảng chung 6 màn (tách từ .dn-tbl của MH06) =====
+ * 4 rule duy nhất .table chưa có: cột bấm sort + mũi tên ▲▼ vẽ bằng CSS
+ * (KHÔNG chèn ký tự vào text node — innerText của test giữ nguyên nhãn).
+ * Cách dùng: <table class="table tbl-chuan">. Các class riêng màn
+ * (.dn-tbl / .khk-tbl / .hh-tbl ...) giữ làm alias: chọn cùng phần tử. */
+.tbl-chuan th.sortable { cursor: pointer; user-select: none; }
+.tbl-chuan th.sortable:hover { color: var(--text); }
+.tbl-chuan th[data-dir="1"]::after { content: " \25B2"; color: var(--cam); font-size: 10px; }
+.tbl-chuan th[data-dir="-1"]::after { content: " \25BC"; color: var(--cam); font-size: 10px; }
+
 /* Cột bấm được (mở màn hình chi tiết) */
 .row-link { cursor: pointer; }
 .table tbody tr.row-link:hover td { background: var(--row-hover); }
@@ -758,7 +768,44 @@ svg.chart .bar:hover { opacity: 0.82; }
    Các mẫu sọc mà JS nhúng trực tiếp (#f1f5f9, #e2e8f0, #cbd5e1) là mảu sáng:
    ép lại nền/viền mảnh sang token tối trong khối tương thích ở cuối file. */
 svg.chart .bar-na { stroke-dasharray: 3 3; }
+/* Đường xu hướng do screen-moigioi.js vẽ (polyline + điểm tròn).
+   Không đặt màu ở đây: JS gán bằng style="stroke:var(--brand-2)". */
+svg.chart .trend-line { transition: opacity var(--tr) linear; }
+svg.chart .trend-pt   { transition: r var(--tr) linear; }
+svg.chart .trend-pt:hover { r: 3.6; }
 .chart-legend, .legend { margin-top: var(--sp-2); }
+
+/* --- Card collapsible <details> (MH02 "Chưa có nguồn dữ liệu") ---
+   <summary> tái dùng lớp .card-head để cùng nền/viền với card-head
+   thường; list-style mặc định của trình duyệt bị tắt, mũi tên tự
+   vẽ bằng ::marker-thay thế để nhất quán bộ icon. */
+details.nguon-details { }
+summary.nguon-summary {
+  cursor: pointer;
+  list-style: none;
+  align-items: center;
+}
+summary.nguon-summary::-webkit-details-marker { display: none; }
+summary.nguon-summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 7px; height: 7px;
+  margin-right: var(--sp-2);
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform var(--tr) linear;
+}
+details.nguon-details[open] > summary.nguon-summary::before {
+  transform: rotate(45deg);
+}
+summary.nguon-summary:hover { background: var(--surface-2); }
+summary.nguon-summary:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+details.nguon-details > .table-wrap { margin-top: var(--sp-3); }
+details.nguon-details > .card-foot { margin-top: var(--sp-2); }
 
 .bar-row {
   display: grid;

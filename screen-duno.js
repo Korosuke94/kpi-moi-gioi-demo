@@ -193,9 +193,9 @@
    * table, num. KHÔNG khai lại màu/size của hệ thống. */
   var CSS = [
     '#screen-duno .dn-sec{margin-top:var(--sp-4,16px);}',
-    /* Vùng A: 4 ô tổng hợp. Mặc định .kpi-tiles là 4 cột nên 4 ô vừa khít;
-     * 6 ô thì phải khai 3 cột, còn 4 ô thì giữ 4 cột cho rộng. */
-    '#screen-duno .dn-tt{grid-template-columns:repeat(4,minmax(0,1fr));',
+    /* Vùng A: 3 ô tổng hợp. Mặc định .kpi-tiles là 4 cột nên 3 ô
+     * khai lại 3 cột cho đều. */
+    '#screen-duno .dn-tt{grid-template-columns:repeat(3,minmax(0,1fr));',
     '  gap:var(--sp-3,12px);}',
     '@media (max-width:1100px){#screen-duno .dn-tt{grid-template-columns:repeat(2,minmax(0,1fr));}}',
     '@media (max-width:640px){#screen-duno .dn-tt{grid-template-columns:1fr;}}',
@@ -212,7 +212,8 @@
     '  background:var(--surface);color:var(--text);font-family:inherit;',
     '  font-size:var(--fs-small,12px);}',
     '#screen-duno .dn-filter input{min-width:170px;}',
-    /* bảng: bám theo .table của hệ thống, chỉ viết riêng phần sort */
+    /* bảng: bám .table + .tbl-chuan của hệ thống (4 rule sort đã chuyển sang
+     * style.css .tbl-chuan); giữ alias .dn-tbl để test cũ không vỡ */
     '#screen-duno .dn-tbl th.sortable{cursor:pointer;user-select:none;}',
     '#screen-duno .dn-tbl th.sortable:hover{color:var(--text);}',
     '#screen-duno .dn-tbl th[data-dir="1"]::after{content:" \\25B2";color:var(--cam);font-size:10px;}',
@@ -285,12 +286,14 @@
       + 'Số ngày tính lãi ÷ 365.<br><br>'
       + '<b>Dư nợ tạm tính</b> và <b>Dư nợ tính lãi</b> là HAI số khác nhau: dư nợ tính lãi '
       + 'là dư nợ chịu lãi thực tế của khách, còn dư nợ tạm tính là căn cứ dùng để '
-      + 'tính lãi tạm tính. Dùng chung một con số cho hai cột làm lãi tạm tính '
+      + 'tính lãi tạm tính. Dùng chung một con số cho hai số làm lãi tạm tính '
       + 'mất hết ý nghĩa.<br><br>'
       + '<b>Khác hoa hồng dư nợ:</b> hoa hồng dư nợ tính trên PHẦN CHÊNH LÃI '
       + '(lãi suất thực tế − lãi suất tham chiếu nguồn vốn) rồi nhân tỷ lệ chia '
       + 'sẻ và chặn về 0 khi chênh lãi âm. Ở đây tính trên TOÀN BỘ dư nợ tạm tính, '
-      + 'không trừ lãi suất tham chiếu, không nhân tỷ lệ chia sẻ.',
+      + 'không trừ lãi suất tham chiếu, không nhân tỷ lệ chia sẻ. '
+      + 'Màn này KHÔNG hiện riêng số Dư nợ tạm tính — số đó chỉ là căn cứ '
+      + 'nội bộ để tính Lãi tạm tính.',
     'duno-don-vi': '<b>Đơn vị: TRIỆU ĐỒNG</b> cho mọi khoản tiền trên màn này — '
       + 'khớp với <i>aum_trieu</i> và <i>lai_vay_trieu</i> của dữ liệu hiện có.<br><br>'
       + '<b>Lãi suất tính theo %/năm</b>, lưu dạng thập phân 0..1 (0,1275 = 12,75%). '
@@ -402,10 +405,6 @@
       laQuanLy ? phuPhong(ky, mgList, 'du_no_tinh_lai', 'trong đó tổng phòng: ')
                      + n1(tongPhong(ky, mgList, 'du_no_tinh_lai')) + ' tr'
                : 'khối khách hàng bạn quản lý'));
-    h.push(tile('Dư nợ tạm tính', n1(tong.du_no_tam_tinh), 'tr', 'duno-cong-thuc',
-      laQuanLy ? phuPhong(ky, mgList, 'du_no_tam_tinh', 'trong đó tổng phòng: ')
-                     + n1(tongPhong(ky, mgList, 'du_no_tam_tinh')) + ' tr'
-               : 'căn cứ tính lãi tạm tính (khác dư nợ tính lãi)'));
     h.push(tile('Lãi tạm tính', n2(tong.lai_tam_tinh), 'tr', 'duno-cong-thuc',
       'ước tính theo quy ước mô phỏng, không phải lãi thực thu'));
     h.push(tile('Số khách có dư nợ', n0(tong.so_kh) , 'khách', 'duno-don-vi',
@@ -449,7 +448,7 @@
    * bản ghi rồi lọc `r.ma_mg` thuộc tập mgList: không lộ người
    * ngoài phạm vi vì chỉ cộng bản ghi khớp. */
   function tinhTong(dict, mgList) {
-    var tong = { du_no_tinh_lai: 0, du_no_tam_tinh: 0, lai_tam_tinh: 0, so_kh: 0, so_kh_tt: 0 };
+    var tong = { du_no_tinh_lai: 0, lai_tam_tinh: 0, so_kh: 0, so_kh_tt: 0 };
     if (!dict || typeof dict !== 'object') return tong;
     var inRange = {};
     for (var i = 0; i < mgList.length; i++) { inRange[mgList[i].ma_mg] = 1; }
@@ -458,7 +457,6 @@
       var r = dict[k];
       if (!r || !inRange[r.ma_mg]) continue;
       if (isNum(r.du_no_tinh_lai)) tong.du_no_tinh_lai += r.du_no_tinh_lai;
-      if (isNum(r.du_no_tam_tinh)) tong.du_no_tam_tinh += r.du_no_tam_tinh;
       if (isNum(r.lai_tam_tinh)) tong.lai_tam_tinh += r.lai_tam_tinh;
       /* Mỗi bản ghi chỉ tính 1 lần (bản gốc đếm đôi `so_kh`). */
       tong.so_kh++;
@@ -468,8 +466,8 @@
   }
 
   /* ============================================================== vùng B
-   * BĐ1 — biến động dư nợ theo NGÀY trong kỳ (nhiều series: dư nợ tính lãi /
-   * dư nợ tạm tính). Đơn vị triệu đồng. */
+   * BĐ1 — biến động dư nợ theo NGÀY trong kỳ (dư nợ tính lãi /
+   * lãi tạm tính). Đơn vị triệu đồng. */
   function vungBienDong(ky, mgList) {
     var g = gopNgy(ky, maTrong(ky, mgList));
     var h = [];
@@ -483,7 +481,7 @@
     h.push('  <div class="card-body">');
     h.push('    <div class="dn-grid">');
 
-    /* Ô trái: dư nợ (2 series). Ô phải: lãi tạm tính theo ngày. */
+    /* Ô trái: dư nợ (1 series). Ô phải: lãi tạm tính theo ngày. */
     h.push('      <div class="dn-cell">' + veBox('dn-bd-du-no', 260, 'Dư nợ theo ngày', 'triệu đồng') + '</div>');
     h.push('      <div class="dn-cell">' + veBox('dn-bd-lai', 260, 'Lãi tạm tính theo ngày', 'triệu đồng · ước tính') + '</div>');
 
@@ -688,7 +686,6 @@
       { k: 'loai_kh', t: 'Loai KH' },
       { k: 'ma_phong', t: 'Phòng' },
       { k: 'du_no_tinh_lai', t: 'Dư nợ tính lãi', num: 1 },
-      { k: 'du_no_tam_tinh', t: 'Dư nợ tạm tính', num: 1 },
       { k: 'lai_tam_tinh', t: 'Lãi tạm tính', num: 1 },
       { k: 'lai_suat_tam_tinh', t: 'Lãi suất tạm tính', num: 1 },
       { k: 'du_no_dau_ky', t: 'Dư nợ đầu kỳ', num: 1 },
@@ -701,8 +698,7 @@
     h.push('    </div>');
     h.push(pager(rows.length, 'dnTrang'));
     h.push('    <div class="dn-note">Dư nợ cuối kỳ là dư nợ tính lãi tại ngày cuối kỳ. '
-      + 'Biến động giữ dấu: <b>+</b> tăng, <b>−</b> giảm. '
-      + 'Dư nợ tạm tính ở tầng khách là số của bộ sinh sinh theo quy ước mô phỏng.</div>');
+      + 'Biến động giữ dấu: <b>+</b> tăng, <b>−</b> giảm.</div>');
     h.push('  </div></div>');
     return h.join('');
   }
@@ -785,7 +781,7 @@
 
     var h = [];
     if (!cat.length) {
-      h.push('        <tr><td colspan="11" class="dn-dash">Không có khách hàng nào khớp bộ lọc.</td></tr>');
+      h.push('        <tr><td colspan="10" class="dn-dash">Không có khách hàng nào khớp bộ lọc.</td></tr>');
       return h.join('');
     }
     for (var i = 0; i < cat.length; i++) {
@@ -798,7 +794,6 @@
       h.push('          <td>' + esc(r.ten_loai_kh || r.loai_kh) + '</td>');
       h.push('          <td>' + esc(phongNgan(r.ma_phong)) + '</td>');
       h.push('          <td class="num">' + n1(r.du_no_tinh_lai) + '</td>');
-      h.push('          <td class="num">' + n1(r.du_no_tam_tinh) + '</td>');
       h.push('          <td class="num">' + n1(r.lai_tam_tinh) + '</td>');
       h.push('          <td class="num">' + fpct(r.lai_suat_tam_tinh) + '</td>');
       h.push('          <td class="num">' + n1(r.du_no_dau_ky) + '</td>');
@@ -855,7 +850,6 @@
       { k: 'ma_phong', t: 'Phòng' },
       { k: 'so_kh', t: 'Số KH', num: 1 },
       { k: 'du_no_tinh_lai', t: 'Dư nợ tính lãi', num: 1 },
-      { k: 'du_no_tam_tinh', t: 'Dư nợ tạm tính', num: 1 },
       { k: 'du_no_lai_tam_tinh', t: 'Dư nợ lãi tạm tính', num: 1 }
     ]));
     h.push('      </thead><tbody id="dnTblNvBody">' + tbodyNv(rows) + '</tbody></table>');
@@ -882,7 +876,6 @@
       h.push('          <td>' + esc(phongNgan(r.ma_phong)) + '</td>');
       h.push('          <td class="num">' + n0(r.so_kh) + '</td>');
       h.push('          <td class="num">' + n1(r.du_no_tinh_lai) + '</td>');
-      h.push('          <td class="num">' + n1(r.du_no_tam_tinh) + '</td>');
       h.push('          <td class="num">' + n2(r.du_no_lai_tam_tinh) + '</td>');
       h.push('        </tr>');
     }
@@ -964,8 +957,9 @@
             if (laQuanLy) h.push(vungNhanVien(ky, mgList));
             h.push('    <div class="dn-rules">');
             h.push('      <b>DỮ LIỆU GIẢ — quy ước mô phỏng.</b> Lãi tạm tính và lãi suất tạm '
-              + 'tính KHÔNG phải số thực thu: dư nợ tạm tính, lãi suất và lãi tạm tính được '
-              + 'sinh theo quy ước ghi ở <i>duno_data.json</i> · ' + esc((D() && D()._nguon_so) || '') + '.');
+                    + 'tính KHÔNG phải số thực thu: dư nợ tạm tính, lãi suất và lãi tạm tính được '
+                    + 'sinh theo quy ước ghi ở <i>duno_data.json</i> (dư nợ tạm tính chỉ là căn cứ '
+                    + 'nội bộ để tính lãi tạm tính, KHÔNG hiện trên màn này) · ' + esc((D() && D()._nguon_so) || '') + '.');
             h.push('    </div>');
           }
         }
@@ -1017,10 +1011,9 @@
     if (!g) return;
     var lbl = g.ngay.map(nhanNgay);
 
-    /* BĐ1a — dư nợ theo ngày (2 series) */
+    /* BĐ1a — dư nợ theo ngày (1 series: dư nợ tính lãi). */
     C.line('dn-bd-du-no', lbl, [
-      { label: 'Dư nợ tính lãi', data: g.du_no_tinh_lai, colorVar: '--chart-series-1' },
-      { label: 'Dư nợ tạm tính', data: g.du_no_tam_tinh, colorVar: '--chart-series-2' }
+      { label: 'Dư nợ tính lãi', data: g.du_no_tinh_lai, colorVar: '--chart-series-1' }
     ], {
       unit: 'tr', decimals: 0, maxTicks: 8,
       emptyMsg: 'Chưa có số liệu dư nợ theo ngày cho kỳ này.'

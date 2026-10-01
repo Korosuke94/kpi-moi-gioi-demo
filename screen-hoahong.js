@@ -426,7 +426,20 @@
    *   phí quản lý → window.HH.pql_theo_ky[ky][ma].phi_quan_ly_trieu (môi giới
    *     thường không có PQL theo PL03 → 0, hiện rõ bằng ghi chú).
    */
-  function khoaLuang(cd, cap) {
+  /* Ánh xạ code lý do PQL (HH.pql_theo_ky[*]._ly_pql) sang text tiếng
+   * Việt để hiện ở .tile-sub của ô "Phí quản lý". Code lạ → hiện nguyên
+   * bản (không mất dữ liệu). */
+  var LY_PQL = {
+    'du_dieu_kien': 'Đủ điều kiện KPI quý',
+    'dtpn_duoi_50_trieu': 'DTPN cá nhân < 50 triệu',
+    'kpi_quy_duoi_80_hoan_nguach': 'KPI quý < 80% — hoàn ngân sách'
+  };
+  function lyPQL(code) {
+    if (!code) return '';
+    return Object.prototype.hasOwnProperty.call(LY_PQL, code) ? LY_PQL[code] : code;
+  }
+
+  function khoaLuong(cd, cap) {
     var kh = global.KH || null;
     var m = kh && kh.luong_cap_bac;
     if (!m || !cd) return null;
@@ -461,7 +474,7 @@
     } else if (lst && typeof lst === 'object' && lst[maMg]) { cap = lst[maMg].cap; }
     if (cap === null || cap === undefined) cap = (mg.cap !== undefined) ? mg.cap : null;
 
-    var lv = khoaLuang(cd, cap);
+    var lv = khoaLuong(cd, cap);
     var luong = lv ? lv.luong_cap_bac : null;
     var hsGoc = lv ? lv.thuong_hieu_suat : null;
 
@@ -491,7 +504,7 @@
     var pq = 0, pqCo = true, pqLy = '';
     var pk = (HH() || {}).pql_theo_ky;
     var pr = pk && pk[kyId] ? pk[kyId][maMg] : null;
-    if (pr && isNum(pr.phi_quan_ly_trieu)) { pq = pr.phi_quan_ly_trieu; pqLy = pr._ly_pql || ''; }
+    if (pr && isNum(pr.phi_quan_ly_trieu)) { pq = pr.phi_quan_ly_trieu; pqLy = lyPQL(pr._ly_pql); }
     else {
       pqCo = false;
       pqLy = 'Chức danh này không phát sinh phí quản lý theo PL03';
@@ -578,8 +591,10 @@
   /* ============================================ PHẦN 1 — Hoa hồng phí giao dịch */
   var T1_COLS = [
     { k: 'ho_ten', ten: 'Khách hàng', num: false },
-    /* ĐƠN VỊ: GTGD tính bằng TỶ VNĐ; phí và hoa hồng tính bằng TRIỆU VNĐ. */
-    { k: 'doanh_so_giao_dich_ty', ten: 'Giá trị GD (tỷ VNĐ)', num: true, f: 2 },
+    /* ĐƠN VỊ CHUẨN: mọi cột tiền trong bảng tính bằng TRIỆU VNĐ.
+     * GTGD dữ liệu có sẵn doanh_so_giao_dich_trieu (×1000 so với
+     * bản tỷ) — KHÔNG tự nhân để tránh lệch làm tròn. */
+    { k: 'doanh_so_giao_dich_trieu', ten: 'Giá trị GD (triệu VNĐ)', num: true, f: 0 },
     { k: 'phi_giao_dich_trieu', ten: 'Phí giao dịch (triệu VNĐ)', num: true, f: 2 },
     { k: 'phi_truoc_so_trieu', ten: 'Phí trả sở (triệu VNĐ)', num: true, f: 2 },
     { k: 'phi_net_trieu', ten: 'Phí Net (triệu VNĐ)', num: true, f: 2, b: true },
@@ -625,7 +640,7 @@
     h.push('<div class="card hh-sec" data-hh-card="t1">');
     h.push('  <div class="card-head">');
     h.push('    <div><div class="card-title">1 · Hoa hồng phí giao dịch</div>');
-    h.push('      <div class="card-sub">Đơn vị: cột <b>Giá trị giao dịch</b> tính bằng <b>TỶ đồng</b>; phí, phí trả sở, phí Net và hoa hồng tính bằng <b>TRIỆU đồng</b> (trừ cột tỷ lệ) · mỗi dòng là 1 khách hàng của môi giới đang xem · bấm đầu cột để sắp xếp. ' +
+    h.push('      <div class="card-sub">Đơn vị: <b>TRIỆU đồng</b> (trừ cột tỷ lệ) · mỗi dòng là 1 khách hàng của môi giới đang xem · bấm đầu cột để sắp xếp. ' +
            fn('<b>Công thức:</b> Phí Net = Phí giao dịch − Phí trả sở; Hoa hồng = Phí Net × tỷ lệ HH của chức danh.<br>' +
               'Tỷ lệ HH cố định theo bảng tham số (Phụ lục 03), KHÔNG lũy tiến.',
               'Cách tính', 'hh-fn-t1') + '</div></div>');
@@ -647,7 +662,7 @@
       return h.join('');
     }
 
-    var tDS = sumField(list, 'doanh_so_giao_dich_ty');
+    var tDS = sumField(list, 'doanh_so_giao_dich_trieu');
     var tPG = sumField(list, 'phi_giao_dich_trieu');
     var tPS = sumField(list, 'phi_truoc_so_trieu');
     var tPN = sumField(list, 'phi_net_trieu');
@@ -655,14 +670,14 @@
     var tlHien = tPN > 0 ? tHH / tPN : null;
 
     h.push('    <div class="hh-tblwrap">');
-    h.push('      <table class="hh-tbl"><thead><tr>');
+    h.push('      <table class="table tbl-chuan hh-tbl"><thead><tr>');
     for (var c = 0; c < T1_COLS.length; c++) h.push(th(T1_COLS[c], 1));
     h.push('      </tr></thead><tbody>');
     for (var i = 0; i < list.length; i++) {
       var r = list[i];
       h.push('        <tr>');
       h.push('          <td>' + esc(r.ho_ten || DASH) + ' <span class="hh-ma">' + esc(r.ma_kh || '') + '</span></td>');
-      h.push('          <td class="num">' + cell(r.doanh_so_giao_dich_ty, 2) + '</td>');
+      h.push('          <td class="num">' + cell(r.doanh_so_giao_dich_trieu, 0) + '</td>');
       h.push('          <td class="num">' + cell(r.phi_giao_dich_trieu, 2) + '</td>');
       h.push('          <td class="num">' + cell(r.phi_truoc_so_trieu, 2) + '</td>');
       h.push('          <td class="num"><b>' + cell(r.phi_net_trieu, 2) + '</b></td>');
@@ -672,7 +687,7 @@
     }
     h.push('      </tbody><tfoot><tr>');
     h.push('        <td data-tot="so_kh">TỔNG ' + esc(n0s(list.length)) + ' khách</td>');
-    h.push('        <td class="num" data-tot="doanh_so_giao_dich_ty">' + esc(n2s(tDS)) + '</td>');
+    h.push('        <td class="num" data-tot="doanh_so_giao_dich_trieu">' + esc(n0s(tDS)) + '</td>');
     h.push('        <td class="num" data-tot="phi_giao_dich_trieu">' + esc(n2(tPG)) + '</td>');
     h.push('        <td class="num" data-tot="phi_truoc_so_trieu">' + esc(n2(tPS)) + '</td>');
     h.push('        <td class="num" data-tot="phi_net_trieu"><b>' + esc(n2(tPN)) + '</b></td>');
@@ -713,7 +728,8 @@
   /* ============================================ PHẦN 2 — Hoa hồng dư nợ (HHDN) */
   var T2_COLS = [
     { k: 'ho_ten', ten: 'Khách hàng', num: false },
-    { k: 'du_no_tinh_lai_ty', ten: 'Dư nợ tính lãi (tỷ VNĐ)', num: true, f: 2 },
+    /* ĐƠN VỊ CHUẨN: mọi cột tiền trong bảng tính bằng TRIỆU VNĐ. */
+    { k: 'du_no_tinh_lai_trieu', ten: 'Dư nợ tính lãi (triệu VNĐ)', num: true, f: 0 },
     { k: 'lai_suat_thuc_te_nam', ten: 'Lãi suất tạm tính', num: true, pct: true },
     { k: 'so_ngay_tinh_lai', ten: 'Số ngày tính lãi', num: true, f: 0 },
     { k: 'luy_ke_lai_vay_trieu', ten: 'Lãi vay luỹ kế (triệu VNĐ)', num: true, f: 2 },
@@ -747,7 +763,7 @@
     h.push('<div class="card hh-sec" data-hh-card="t2">');
     h.push('  <div class="card-head">');
     h.push('    <div><div class="card-title">2 · Hoa hồng dư nợ (HHDN)</div>');
-    h.push('      <div class="card-sub">Đơn vị: Dư nợ tính bằng <b>TỶ VNĐ</b>; Lãi vay và hoa hồng tính bằng <b>TRIỆU VNĐ</b> · lãi suất hiển thị dạng %/năm · ' +
+    h.push('      <div class="card-sub">Đơn vị: <b>TRIỆU đồng</b> (trừ cột lãi suất %) · lãi suất hiển thị dạng %/năm · ' +
            fn('<b>Điều kiện hưởng HHDN:</b> chỉ hưởng khi lãi thực thu CAO HƠN lãi suất tham chiếu (Nguồn vốn).<br>' +
               'Công thức: HHDN = dư nợ tính lãi × (lãi suất thực tế theo ngày − lãi suất Nguồn vốn) × tỷ lệ chia sẻ ÷ 365.<br>' +
               'Khách không đủ điều kiện: dòng hoa hồng ghi rõ bằng chữ, không để số 0 trần trụi. Lãi suất tham chiếu: <b>' +
@@ -771,10 +787,7 @@
       return h.join('');
     }
 
-    var tDN = list.reduce(function (a, r) {
-      var v = (r.du_no_tinh_lai_ty != null) ? r.du_no_tinh_lai_ty : (isNum(r.du_no_tinh_lai_trieu) ? r.du_no_tinh_lai_trieu / 1000.0 : 0);
-      return a + v;
-    }, 0);
+    var tDN = sumField(list, 'du_no_tinh_lai_trieu');
     var tLV = sumField(list, 'luy_ke_lai_vay_trieu');
     var tDN2 = sumField(list, 'hoa_hong_dn_trieu');
     var nK = 0;
@@ -782,17 +795,16 @@
     var tlHien = tLV > 0 ? tDN2 / tLV : null;
 
     h.push('    <div class="hh-tblwrap">');
-    h.push('      <table class="hh-tbl"><thead><tr>');
+    h.push('      <table class="table tbl-chuan hh-tbl"><thead><tr>');
     for (var c = 0; c < T2_COLS.length; c++) h.push(th(T2_COLS[c], 2));
     h.push('      </tr></thead><tbody>');
     for (var i = 0; i < list.length; i++) {
       var r = list[i];
       var hh2 = lyHHDN(r);
       var ok = hh2.ok;
-      var dnTy = (r.du_no_tinh_lai_ty != null) ? r.du_no_tinh_lai_ty : (isNum(r.du_no_tinh_lai_trieu) ? r.du_no_tinh_lai_trieu / 1000.0 : null);
       h.push('        <tr>');
       h.push('          <td>' + esc(r.ho_ten || DASH) + ' <span class="hh-ma">' + esc(r.ma_kh || '') + '</span></td>');
-      h.push('          <td class="num">' + cell(dnTy, 2) + '</td>');
+      h.push('          <td class="num">' + cell(r.du_no_tinh_lai_trieu, 0) + '</td>');
       h.push('          <td class="num">' + (isNum(r.lai_suat_thuc_te_nam) ? esc(fpct(r.lai_suat_thuc_te_nam)) : '<span class="empty"></span>') + '</td>');
       h.push('          <td class="num">' + cell(r.so_ngay_tinh_lai, 0) + '</td>');
       h.push('          <td class="num">' + cell(r.luy_ke_lai_vay_trieu, 2) + '</td>');
@@ -808,7 +820,7 @@
     }
     h.push('      </tbody><tfoot><tr>');
     h.push('        <td data-tot="so_kh">TỔNG ' + esc(n0s(list.length)) + ' khách · ' + esc(n0s(nK)) + ' đủ điều kiện</td>');
-    h.push('        <td class="num" data-tot="du_no_tinh_lai_ty">' + esc(n2(tDN)) + '</td>');
+    h.push('        <td class="num" data-tot="du_no_tinh_lai_trieu">' + esc(n0s(tDN)) + '</td>');
     var lsb = laiSuatTB(list), nnb = soNgayTB(list);
     h.push('        <td class="num" data-tot="lai_suat_tb">' + (lsb == null ? DASH : esc(fpct(lsb))) + '</td>');
     h.push('        <td class="num" data-tot="so_ngay_tb">' + (nnb == null ? DASH : esc(n0s(nnb))) + '</td>');
@@ -957,6 +969,16 @@
       return h.join('');
     }
 
+    /* Tìm PQL (t3): lọc theo tên / mã môi giới trước khi tính. */
+    var q3 = String(st.t3.q || '').trim().toLowerCase();
+    if (q3) {
+      nhanVien = nhanVien.filter(function (m) {
+        var mm = mgById(m) || {};
+        return String(mm.ho_ten || '').toLowerCase().indexOf(q3) >= 0
+          || String(mm.ma_mg || m || '').toLowerCase().indexOf(q3) >= 0;
+      });
+    }
+
     /* Tỷ lệ + ngưỡng KPI là của NGƯỜI ĐANG XEM (TP), dùng chung cho mọi dòng. */
     var mgMe = mgById(maMg) || {};
     var tlPql = tyLePql(maMg, kyId, mgMe.chuc_danh);
@@ -992,7 +1014,7 @@
     for (var i = 0; i < list.length; i++) { tDT += list[i].dt; tPHI += list[i].r.phi; }
 
     h.push('    <div class="hh-tblwrap">');
-    h.push('      <table class="hh-tbl"><thead><tr>');
+    h.push('      <table class="table tbl-chuan hh-tbl"><thead><tr>');
     h.push('        <th>Tên nhân viên</th>');
     h.push(thPql('dt', 'Doanh thu phí Net (triệu VNĐ)', 3));
     h.push(thPql('tl', 'Tỷ lệ tính phí quản lý', 3));
@@ -1079,6 +1101,17 @@
       return h.join('');
     }
 
+    /* Tìm PQL (t4): lọc theo tên / mã phòng trước khi tính. */
+    var q4 = String(st.t4.q || '').trim().toLowerCase();
+    if (q4) {
+      ds = ds.filter(function (p) {
+        var info = phongHH(p);
+        var ten = (info && info.ten_phong) ? info.ten_phong : tenPhong(p);
+        return String(ten || '').toLowerCase().indexOf(q4) >= 0
+          || String(p || '').toLowerCase().indexOf(q4) >= 0;
+      });
+    }
+
     /* Tỷ lệ + ngưỡng KPI là của CẤP QUẢN LÝ đang xem (GĐTT / GĐ Khối). */
     var mgMe = mgById(maMg) || {};
     var tlPql = tyLePql(maMg, kyId, mgMe.chuc_danh);
@@ -1110,7 +1143,7 @@
     for (var i = 0; i < list.length; i++) { tDT += list[i].dt; tPHI += list[i].r.phi; }
 
     h.push('    <div class="hh-tblwrap">');
-    h.push('      <table class="hh-tbl"><thead><tr>');
+    h.push('      <table class="table tbl-chuan hh-tbl"><thead><tr>');
     h.push('        <th>Tên phòng</th>');
     h.push(thPql('dt', 'Doanh số phòng (triệu VNĐ)', 4));
     h.push(thPql('tl', 'Tỷ lệ phí quản lý', 4));
@@ -1197,7 +1230,7 @@
     var vt = vaiTro(cd);
     var h = [];
 
-    h.push('<div class="card hh-sec">');
+    h.push('<div class="card hh-sec" data-hh-card="pql">');
     h.push('  <div class="card-head">');
     h.push('    <div><div class="card-title">3 · Phí quản lý (PQL) — theo vai trò của bạn</div>');
     h.push('      <div class="card-sub">Đơn vị: TRIỆU ĐỒNG · người đang xem: <b>' +
@@ -1209,6 +1242,13 @@
               '</b>; dưới mức này phí kỳ đó bằng 0, hoàn ngân sách, không chuyển kỳ sau.<br>' +
               'Phí quản lý tạm tính = Doanh thu phí Net × tỷ lệ của chức danh, có chặn trần và điều kiện KPI ở trên.',
               'Cách tính', 'hh-fn-pql') + '</div></div>');
+    h.push('    <div class="hh-filter">');
+    /* Ô tìm PQL: t3 (nhân viên) / t4 (phòng) tuỳ vai trò. data-act="hh-q"
+     * để handler input chung (đăng ký st.tN.q + paintTables). */
+    h.push('      <label for="hhQ3">Tìm ' + (vt === 'gd' ? 'phòng' : 'nhân viên') + '</label>');
+    h.push('      <input id="hhQ3" type="search" data-act="hh-q" data-t="3" value="' +
+           esc((vt === 'gd' ? st.t4.q : st.t3.q)) + '" placeholder="Tên hoặc mã">');
+    h.push('    </div>');
     h.push('    <div class="hh-cap">' + (vt !== 'mg' ? chipKpi(kpiRatio(maMg, kyId)) : '') +
            '<span class="hh-chip">Vai trò: ' + esc(vt === 'tp' ? 'Trưởng phòng (trực tiếp)' :
                                                 (vt === 'gd' ? 'Giám đốc (gián tiếp / Khối)' : 'Môi giới (không tính PQL)')) + '</span>' +
@@ -1427,8 +1467,10 @@
       var t = e2.getAttribute('data-t');
       if (t === '1') st.t1.q = e2.value || '';
       else if (t === '2') st.t2.q = e2.value || '';
+      else if (t === '3') st.t3.q = e2.value || '';
+      else if (t === '4') st.t4.q = e2.value || '';
       else return;
-      /* Chỉ vẽ lại 2 bảng, giữ con trỏ nhập: sửa từng dòng bảng trong DOM. */
+      /* Chỉ vẽ lại bảng tương ứng, giữ con trỏ nhập: sửa từng dòng bảng trong DOM. */
       paintTables(t);
     });
   }
@@ -1439,11 +1481,37 @@
    * đúng chỉ khi vùng TẠM TÍNH luôn dựng; khi phần đó không có (thiếu ma_mg)
    * hoặc vùng điểm mở không render, card bị thay nhầm → mất hẳn khối TẠM TÍNH
    * (6 ô biến mất) và nhân bản id="hhQ1" (2 input cùng id). Nay neo theo
-   * data-hh-card do phan1/phan2 tự gắn. */
+   * data-hh-card do phan1/phan2 tự gắn.
+   *
+   * t3/t4 (PQL): bảng PQL không có data-hh-card riêng → vẽ lại cả card
+   * PQL bằng phan3(). */
   function paintTables(tbl) {
     if (!lastEl) return refresh();
     var maMg = maMgXem(lastCtx);
     var ky = kyId(lastCtx);
+    if (tbl === '3' || tbl === '4') {
+      var pHost = lastEl.querySelector('.card[data-hh-card="pql"]');
+      if (pHost && pHost.parentNode) {
+        var tmp3 = global.document.createElement('div');
+        tmp3.innerHTML = phan3(maMg, ky);
+        var neu3 = tmp3.firstChild;
+        while (neu3 && neu3.nodeType !== 1) neu3 = neu3.nextSibling;
+        if (neu3) {
+          var canFocus3 = global.document.activeElement &&
+            global.document.activeElement.id === 'hhQ3';
+          var pos3 = canFocus3 ? global.document.activeElement.selectionStart : null;
+          pHost.parentNode.replaceChild(neu3, pHost);
+          if (canFocus3) {
+            var box3 = neu3.querySelector('#hhQ3');
+            if (box3 && typeof box3.focus === 'function') {
+              try { box3.focus(); if (pos3 != null) box3.setSelectionRange(pos3, pos3); } catch (e) { /* im lặng */ }
+            }
+          }
+          return;
+        }
+      }
+      return refresh();
+    }
     var anchor = (tbl === '1') ? 't1' : 't2';
     var host = lastEl.querySelector('.card[data-hh-card="' + anchor + '"]');
     /* Không tìm thấy card (màn chưa dựng / đã đổi bố cục) → vẽ lại cả màn. */

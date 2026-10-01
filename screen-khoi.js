@@ -402,7 +402,8 @@
     h.push('    <div class="tile-label">Tổng môi giới</div>');
     h.push('    <div class="tile-value">' + esc(n0(stats.so_mg)) + '</div>');
     h.push('    <div class="tile-sub">' + esc(n0(stats.so_nv)) + ' nhân viên · ' + esc(n0(stats.so_tp)) +
-      ' cấp quản lý (' + esc(n0(stats.so_tp_vn)) + ' trưởng phòng · ' + esc(n0(stats.so_gd)) + ' giám đốc)</div>');
+      ' cấp quản lý (' + esc(n0(stats.so_tp_vn)) + ' trưởng phòng · ' + esc(n0(stats.so_gd)) + ' giám đốc)' +
+      (stats.gdNgoaiCay ? ' — GĐ TVĐT MG016 ngoài phạm vi cây không tính' : '') + '</div>');
     h.push('  </div>');
 
     h.push('  <div class="tile">');
@@ -420,8 +421,8 @@
 
     h.push('  <div class="tile ' + (stats.tyLeDat == null ? '' : stats.tyLeDat >= 0.5 ? 'xl-B' : 'xl-C') + '">');
     h.push('    <div class="tile-label">Môi giới đạt chỉ tiêu</div>');
-    h.push('    <div class="tile-value">' + (stats.tyLeDat == null ? DASH : esc(n0(stats.so_dat)) + ' / ' + esc(n0(stats.coTyLe))) + '</div>');
-    h.push('    <div class="tile-sub">' + (stats.tyLeDat == null ? DASH : esc(pct(stats.tyLeDat, 0)) + ' đạt tỷ lệ ≥ 100%') + '</div>');
+    h.push('    <div class="tile-value">' + (stats.tyLeDat == null ? DASH : esc(n0(stats.so_dat)) + '/' + esc(n0(stats.coTyLe))) + '</div>');
+    h.push('    <div class="tile-sub">' + (stats.tyLeDat == null ? DASH : esc(pct(stats.tyLeDat, 1)) + ' đạt tỷ lệ ≥ 100%') + '</div>');
     h.push('  </div>');
 
     h.push('</div>');
@@ -477,18 +478,15 @@
     }
 
     h.push('  <div class="table-wrap">');
-    h.push('    <table class="table table-kh-phong"><thead><tr>');
+    h.push('    <table class="table table-kh-phong tbl-chuan"><thead><tr>');
     h.push('      <th class="col-id">Mã</th>');
     h.push('      <th>Phòng</th>');
     h.push('      <th class="num">Số MG</th>');
     h.push('      <th class="num">Trưởng phòng</th>');
     h.push('      <th class="num" title="Tổng điểm thật của các môi giới trong phòng (điểm, không phải tỷ lệ)">Tổng điểm</th>');
-    h.push('      <th class="num" title="KPI.xlsx chưa có điểm chuẩn cấp phòng">Điểm chuẩn phòng</th>');
-    h.push('      <th class="num">Tỷ lệ</th>');
-    h.push('      <th class="num">Xếp loại</th>');
-    h.push('      <th class="num">Đạt chỉ tiêu</th>');
-    h.push('      <th class="num">Cấp 2+</th>');
-    h.push('      <th class="num">Giữ nhân sự</th>');
+    h.push('      <th class="num">Tỷ lệ HB bình quân</th>');
+    h.push('      <th class="num" title="Số môi giới đạt chỉ tiêu / tổng nhân sự phòng · tỷ lệ trên tổng nhân sự">Đạt chỉ tiêu (số/tổng)</th>');
+    h.push('      <th class="num" title="Số môi giới cấp 2 trở lên / tổng nhân sự phòng · tỷ lệ trên tổng nhân sự">Cấp 2+ (số/tổng)</th>');
     h.push('      <th class="cn-na">Ghi chú</th>');
     h.push('    </tr></thead><tbody>');
     list.forEach(function (p) {
@@ -498,26 +496,22 @@
       h.push('      <td class="num">' + cellSo(p.so_mg) + '</td>');
       h.push('      <td class="num">' + cellSo(p.so_tp) + '</td>');
       h.push('      <td class="num"><b>' + cellDiem(p.tong_diem_phong) + '</b></td>');
-      h.push('      <td class="num"' + oTruong(p.diem_chuan_phong) + '>' +
-        (isNum(p.diem_chuan_phong) ? esc(n0(p.diem_chuan_phong)) : '<span class="empty"></span>') + '</td>');
-      h.push('      <td class="num"' + oTruong(p.ty_le_hoan_thanh_phong) + '>' + cellPct(p.ty_le_hoan_thanh_phong) + '</td>');
-      h.push('      <td class="num">' + (p.xep_loai_phong
-        ? '<span class="pill ' + xlClass(p.xep_loai_phong) + '">' + esc(p.xep_loai_phong) + '</span>'
-        : '<span class="empty"></span>') + '</td>');
-      h.push('      <td class="num" title="Số môi giới đạt chỉ tiêu / tỷ lệ trên tổng nhân sự">' +
-        cellSo(p.so_mg_dat_chi_tieu) + '<div class="muted small">' +
-        cellPct(p.ty_le_nv_dat_chi_tieu) + '</div></td>');
-      h.push('      <td class="num" title="Số môi giới cấp 2 trở lên / tỷ lệ trên tổng nhân sự">' +
-        cellSo(p.so_mg_cap2_tro_len) + '<div class="muted small">' +
-        cellPct(p.ty_le_cap2_tro_len) + '</div></td>');
-      h.push('      <td class="num">' + cellPct(p.ty_le_giu_nhan_su) + '</td>');
+      h.push('      <td class="num"' + oTruong(p.ty_le_hoan_thanh_binh_quan) + '>' + cellPct(p.ty_le_hoan_thanh_binh_quan) + '</td>');
+      h.push('      <td class="num" title="Số môi giới đạt chỉ tiêu / tổng nhân sự phòng">' +
+        cellSo(p.so_mg_dat_chi_tieu) + '/' + cellSo(p.so_mg_nhan_vien) +
+        (isNum(p.ty_le_nv_dat_chi_tieu) ? ' · ' + esc(pct(p.ty_le_nv_dat_chi_tieu, 1)) : '') + '</td>');
+      h.push('      <td class="num" title="Số môi giới cấp 2 trở lên / tổng nhân sự phòng">' +
+        cellSo(p.so_mg_cap2_tro_len) + '/' + cellSo(p.so_mg_nhan_vien) +
+        (isNum(p.ty_le_cap2_tro_len) ? ' · ' + esc(pct(p.ty_le_cap2_tro_len, 1)) : '') + '</td>');
       h.push('      <td class="cn-na muted small">' + (p.ghi_chu ? esc(p.ghi_chu) : '<span class="empty"></span>') + '</td>');
       h.push('    </tr>');
     });
     h.push('    </tbody></table>');
     h.push('  </div>');
-    h.push('  <div class="card-foot">Điểm chuẩn / tỷ lệ / xếp loại cấp phòng chưa có nguồn trong KPI.xlsx ' +
-      '→ hiển thị "—", xem schema.json quy_tac_diem.diem_chuan.ghi_chu_phong.</div>');
+    h.push('  <div class="card-foot">Điểm chuẩn phòng, tỷ lệ hoàn thành phòng và xếp loại phòng chưa có nguồn dữ liệu ' +
+        '(KPI.xlsx không có các cột này) nên không hiển thị. Bảng này là số liệu <b>toàn phòng</b> ' +
+        '(KPI.tong_hop_phong), chưa lọc cây quản lý — bộ lọc phòng ở trên chỉ đổi bảng môi giới ' +
+        'và các biểu đồ; Đạt chỉ tiêu / Cấp 2+ là số môi giới / tổng nhân sự phòng.</div>');
     h.push('</div>');
     return h.join('');
   }
@@ -565,7 +559,7 @@
         h.push('    <div class="bar-note">Tổng điểm ' + cellDiem(r.p.tong_diem_phong) +
           ' điểm ÷ ' + esc(n0(r.p.so_mg)) + ' môi giới = ' + esc(n2(r.tb)) + ' điểm/môi giới' +
           (isNum(r.p.ty_le_hoan_thanh_binh_quan) ? '; tỷ lệ hoàn thành bình quân ' + esc(pct(r.p.ty_le_hoan_thanh_binh_quan, 1)) : '') +
-          (isNum(r.p.ty_le_nv_dat_chi_tieu) ? '; tỷ lệ môi giới đạt chỉ tiêu ' + esc(pct(r.p.ty_le_nv_dat_chi_tieu, 0)) : '') + '.</div>');
+          (isNum(r.p.ty_le_nv_dat_chi_tieu) ? '; tỷ lệ môi giới đạt chỉ tiêu ' + esc(pct(r.p.ty_le_nv_dat_chi_tieu, 1)) : '') + '.</div>');
       });
     }
     h.push('  </div>');
@@ -574,7 +568,45 @@
   }
 
   /* ------------------------------------------- bảng môi giới trong khối */
-  /* ------------------------------------------- diễn biến 6 kỳ của khối */
+  /* --- helper cho bảng "Diễn biến 6 kỳ": sparkline + gộp xếp loại --- */
+  /* Tổng điểm từng kỳ (chưa lọc phòng — bảng này tóm tắt khối). */
+  function sparkTongDiem(list) {
+    return (list || []).map(function (k) {
+      var s = thongKeKhoi(k.ky_id, null);
+      return isNum(s.sumDiemThuc) ? s.sumDiemThuc : null;
+    });
+  }
+  /* Trả về chuỗi SVG polyline + chấm cuối cùng. Điểm null -> bỏ qua. */
+  function sparkSVG(vals) {
+    var ds = vals.map(function (v, i) { return { v: v, i: i }; }).filter(function (p) { return p.v != null; });
+    if (!ds.length) return '';
+    var min = Math.min.apply(null, ds.map(function (p) { return p.v; }));
+    var max = Math.max.apply(null, ds.map(function (p) { return p.v; }));
+    var span = max - min || 1;
+    var W = 76, H = 20, PAD = 2;
+    var pts = ds.map(function (p) {
+      var x = PAD + (W - PAD * 2) * (ds.length === 1 ? 0.5 : p.i / (vals.length - 1));
+      var y = H - PAD - (H - PAD * 2) * ((p.v - min) / span);
+      return [x.toFixed(1), y.toFixed(1)];
+    });
+    var last = pts[pts.length - 1];
+    return '<polyline points="' + pts.map(function (p) { return p.join(','); }).join(' ') +
+      '" fill="none" stroke="var(--series-1)" stroke-width="1.5" opacity="0.8"/>' +
+      '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="2" fill="var(--series-1)"/>';
+  }
+  /* Đếm xếp loại A/B/C/D của 1 kỳ (cây lọc). */
+  function rkCounts(kyId) {
+    var rk = rowsKyCay(kyId);
+    return { A: countXL(rk, 'A'), B: countXL(rk, 'B'), C: countXL(rk, 'C'), D: countXL(rk, 'D') };
+  }
+  /* Gộp A·B·C·D thành 1 ô "1·3·1·1", nhóm không có thì là "—". */
+  function xlPhanHo(cnt) {
+    var parts = ['A', 'B', 'C', 'D'].map(function (g) {
+      return (cnt[g] ? '<span class="pill ' + xlClass(g) + '">' + esc(n0(cnt[g])) + '</span>' : '<span class="muted">—</span>');
+    });
+    return parts.join('<span class="muted"> · </span>');
+  }
+
   function blockTrendKy(kyHienTaiId) {
     var list = Array.isArray(K().danh_sach_ky) ? K().danh_sach_ky : [];
     var h = [];
@@ -592,40 +624,38 @@
       return h.join('');
     }
     h.push('  <div class="table-wrap">');
-    h.push('    <table class="table table-sm"><thead><tr>');
+    h.push('    <table class="table table-sm tbl-chuan"><thead><tr>');
     h.push('      <th>Kỳ</th>');
-    h.push('      <th class="num">Số MG</th>');
     h.push('      <th class="num">Có tỷ lệ</th>');
     h.push('      <th class="num">Tổng điểm</th>');
     h.push('      <th class="num">TB điểm</th>');
     h.push('      <th class="num">Tỷ lệ bình quân</th>');
     h.push('      <th class="num">Đạt chỉ tiêu</th>');
-    h.push('      <th class="num">A</th><th class="num">B</th><th class="num">C</th><th class="num">D</th>');
+    h.push('      <th class="num" title="Xếp loại A·B·C·D">Xếp loại (A·B·C·D)</th>');
+    h.push('      <th class="num" title="Biến động tổng điểm qua các kỳ — chấm nhỏ, cao = điểm cao">Diễn biến</th>');
     h.push('    </tr></thead><tbody>');
+    var spark = sparkTongDiem(list);
     list.forEach(function (k) {
       var loc = (UI.phong && UI.phong !== 'ALL') ? UI.phong : null;
       var s = thongKeKhoi(k.ky_id, loc);
       var hienTai = k.ky_id === kyHienTaiId;
       h.push('    <tr' + (hienTai ? ' class="row-active"' : '') + '>');
       h.push('      <td>' + (hienTai ? '<b>' + esc(k.nhan) + '</b> <span class="chip">đang xem</span>' : esc(k.nhan)) + '</td>');
-      h.push('      <td class="num">' + cellSo(s.so_mg) + '</td>');
       h.push('      <td class="num">' + cellSo(s.coTyLe) + '</td>');
       h.push('      <td class="num">' + (s.coDiem ? esc(n2(s.sumDiemThuc)) : '<span class="empty"></span>') + '</td>');
       h.push('      <td class="num">' + cellDiem(s.diemTBThuc) + '</td>');
       h.push('      <td class="num"><b>' + cellPct(s.tyLeTB) + '</b></td>');
-      h.push('      <td class="num">' + (s.tyLeDat == null ? '<span class="empty"></span>' : esc(n0(s.so_dat)) + ' · ' + esc(pct(s.tyLeDat, 0))) + '</td>');
-      ['A', 'B', 'C', 'D'].forEach(function (g) {
-        var rk = rowsKyCay(k.ky_id);
-        h.push('      <td class="num">' + (countXL(rk, g) ? '<span class="pill ' + xlClass(g) + '">' +
-          esc(n0(countXL(rk, g))) + '</span>' : '<span class="empty"></span>') + '</td>');
-      });
+      h.push('      <td class="num">' + (s.tyLeDat == null ? '<span class="empty"></span>' : esc(n0(s.so_dat)) + ' · ' + esc(pct(s.tyLeDat, 1))) + '</td>');
+      h.push('      <td class="num">' + xlPhanHo(rkCounts(k.ky_id)) + '</td>');
+      h.push('      <td class="num"><svg class="spark" width="76" height="20" viewBox="0 0 76 20" aria-hidden="true">' +
+        sparkSVG(spark) + '</svg></td>');
       h.push('    </tr>');
     });
     h.push('    </tbody></table>');
     h.push('  </div>');
-    h.push('  <div class="card-foot">Cột tổng điểm / tỷ lệ / xếp loại cấp phòng (' +
-      'KPI.tong_hop_phong) chỉ có cho kỳ hiện tại, nên bảng này tính lại từ dữ liệu từng môi giới ' +
-      'để đủ số ở mọi kỳ.</div>');
+    h.push('  <div class="card-foot">Bảng tính lại từ dữ liệu từng môi giới (KPI.ket_qua_theo_ky) ' +
+        'nên có đủ số ở mọi kỳ; cột tổng điểm / tỷ lệ / xếp loại cấp phòng (KPI.tong_hop_phong) ' +
+        'chỉ có cho kỳ hiện tại. Cột Diễn biến là sparkline tổng điểm qua các kỳ.</div>');
     h.push('</div>');
     return h.join('');
   }
@@ -648,7 +678,7 @@
     h.push('    </div>');
     h.push('  </div>');
     h.push('  <div class="table-wrap">');
-    h.push('    <table class="table table-kh-mg"><thead><tr>');
+    h.push('    <table class="table table-kh-mg tbl-chuan"><thead><tr>');
     h.push(thSort('ma_mg', 'Mã MG', ''));
     h.push(thSort('ho_ten', 'Họ và tên', ''));
     h.push(thSort('chuc_danh', 'Chức danh', ''));
@@ -760,9 +790,10 @@
       var o = stats.theoPhong[r.ma_phong] || (stats.theoPhong[r.ma_phong] = 0);
       stats.theoPhong[r.ma_phong] = o + 1;
     });
-    /* Nhân viên = tổng môi giới trừ CẤP QUẢN LÝ (TP + GĐ) — khớp cách đếm
-       của tong_hop_phong; GĐ TVĐT (MG016/MG017) là cấp quản lý. */
     stats.so_nv = Math.max(0, stats.so_mg - stats.so_tp);
+    stats.gdNgoaiCay = !allRows.some(function (r) {
+      return r.ma_mg === 'MG016' || r.ma_mg === 'MG017';
+    });
 
     var tpList = tongHopPhong(kyId);
     var coSo = coTongHopPhong(kyId);
@@ -793,10 +824,15 @@
     h.push(blockBangPhong(tpHienThi, kyId, coSo));
     h.push(blockBars(tpHienThi, stats));
     h.push(blockTrendKy(kyId));
-    h.push(blockCongThuc(stats));
+    /* P2: bảng "Môi giới trong khối" (blockBangMG) được đẩy LÊN TRƯỚC
+       cụm biểu đồ — người xem đọc bảng tổng hợp trước, biểu đồ tương tác
+       ở cuối màn. screen-khoi-chart.js insertHost() chèn host biểu đồ
+       NGAY SAU bảng này (marker .khoi-charts-after). */
     h.push(blockBangMG((UI.phong && UI.phong !== 'ALL')
       ? allRows.filter(function (r) { return r.ma_phong === UI.phong; })
       : allRows));
+    h.push('<div class="khoi-charts-after"></div>');
+    h.push(blockCongThuc(stats));
 
     el.innerHTML = h.join('');
     el.setAttribute('data-ready', '1');

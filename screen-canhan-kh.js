@@ -35,7 +35,13 @@
   ];
 
   /* Trạng thái riêng của 3 khối (giữ khi đổi kỳ / đổi người) */
-  var st = { sort: 'diem_phi', dir: -1, loai: '', top: TOP_N };
+  var st = { sort: 'diem_phi', dir: -1, loai: '', top: TOP_N, q: '' };
+  /* Phân trang bảng chi tiết KH — pattern screen-duno.js.
+     TRANG=40 ≥ MAX_KH_ROWS (30) nên mọi row luôn nằm 1 trang;
+     pager chỉ hiện khi danh sách LỌC > 40 row (mg03 section C đọc
+     tbody tr nên phải thấy đủ mọi row). */
+  var TRANG = 40;
+  var stTrang = { page: 1 };
 
   /* TỔNG doanh thu / tổng điểm hiển thị NGOÀI biểu đồ (#khkC1-tong).
    * tong1 = [{ten, tongTien, tongDiem}] theo ĐÚNG thứ tự labels của khkC1;
@@ -226,36 +232,48 @@
     /* Nhãn phụ của biểu đồ nhỏ quá trên nền tối — nâng lên đọc được */
     '#screen-canhan .chart-box-sub{font-size:12.5px;color:var(--muted);line-height:1.5;}',
     '#screen-canhan .chart-box-title{font-size:14.5px;}',
-    /* Bảng chi tiết khách */
+    /* Bảng chi tiết khách — migration .table + .tbl-chuan (28/10):
+       width/border-collapse/padding/sticky thead+num right/hover/
+       sticky tfoot/sortable ▲▼ đều do .table/.tbl-chuan đảm nhận.
+       GIỮ LẠI: khung cuộn + reset sticky cột 1/2 (bảng này KHÔNG
+       dính cột ID như .table mặc định — cột # hẹp, tên tự co)
+       + khk-ma/kh-rank riêng màn. */
     '#screen-canhan .khk-tblwrap{overflow:auto;max-height:440px;',
-    '  border:1px solid var(--border);border-radius:var(--radius-sm,6px);}',
-    '#screen-canhan .khk-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}',
-    '#screen-canhan .khk-tbl th,#screen-canhan .khk-tbl td{padding:8px 12px;',
-    '  border-bottom:1px solid var(--border-soft);white-space:nowrap;}',
-    '#screen-canhan .khk-tbl thead th{position:sticky;top:0;z-index:2;',
-    '  background:var(--surface-2);color:var(--muted);font-weight:600;',
-    '  font-size:12px;text-align:left;}',
-    '#screen-canhan .khk-tbl thead th.sortable{cursor:pointer;user-select:none;}',
-    '#screen-canhan .khk-tbl thead th.sortable:hover{color:var(--text);}',
-    '#screen-canhan .khk-tbl thead th[data-dir="1"]::after{content:" ▲";color:var(--cam);font-size:10px;}',
-    '#screen-canhan .khk-tbl thead th[data-dir="-1"]::after{content:" ▼";color:var(--cam);font-size:10px;}',
-    '#screen-canhan .khk-tbl td.num,#screen-canhan .khk-tbl th.num{text-align:right;',
-    '  font-variant-numeric:tabular-nums;}',
-    '#screen-canhan .khk-tbl tbody tr:hover{background:var(--row-hover);}',
-    '#screen-canhan .khk-tbl tfoot td{position:sticky;bottom:0;background:var(--surface-2);',
-    '  font-weight:700;border-top:1px solid var(--border);}',
+    '  border:1px solid var(--border);border-radius:var(--radius-sm,6px);',
+    '  overscroll-behavior:contain;scrollbar-width:thin;',
+    '  scrollbar-color:var(--border-strong) transparent;}',
+    '#screen-canhan .khk-tblwrap::-webkit-scrollbar{width:10px;height:10px;}',
+    '#screen-canhan .khk-tblwrap::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:var(--radius-pill);}',
+    '#screen-canhan .khk-tblwrap::-webkit-scrollbar-track{background:transparent;}',
+    '#screen-canhan .khk-tbl th:nth-child(1),#screen-canhan .khk-tbl td:nth-child(1),',
+    '#screen-canhan .khk-tbl th:nth-child(2),#screen-canhan .khk-tbl td:nth-child(2){position:static;',
+    '  width:auto;min-width:0;box-shadow:none;}',
+    '#screen-canhan .khk-tbl thead th:nth-child(1),#screen-canhan .khk-tbl thead th:nth-child(2){z-index:2;}',
     '#screen-canhan .khk-tbl .khk-ma{color:var(--muted);font-size:12px;}',
     '#screen-canhan .khk-rank{display:inline-block;min-width:20px;color:var(--muted);font-size:12px;}',
     /* Thanh tỷ trọng trong ô điểm */
     '#screen-canhan .khk-bar{display:block;height:4px;margin-top:4px;border-radius:2px;',
     '  background:linear-gradient(90deg,var(--brand),var(--cam));}',
-    /* Bộ lọc */
+    /* Bộ lọc (Loại khách + Tìm) */
     '#screen-canhan .khk-filter{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}',
     '#screen-canhan .khk-filter label{font-size:12px;color:var(--muted);}',
     '#screen-canhan .khk-filter select{height:28px;padding:0 8px;',
     '  border:1px solid var(--border);border-radius:var(--radius-sm,6px);',
     '  background:var(--surface);color:var(--text);font-family:inherit;font-size:12px;}',
-    /* Chip loại khách cho vòng tròn */
+    /* Tìm KH — ô input */
+    '#screen-canhan .khk-filter input[type="search"]{height:28px;padding:0 8px;min-width:160px;',
+    '  border:1px solid var(--border);border-radius:var(--radius-sm,6px);',
+    '  background:var(--surface);color:var(--text);font-family:inherit;font-size:12px;}',
+    /* Phân trang bảng chi tiết KH (pattern MH06) */
+    '#screen-canhan .khk-pager{display:flex;align-items:center;justify-content:space-between;',
+    '  gap:8px;padding:6px 10px;font-size:12px;color:var(--muted);',
+    '  border-top:1px solid var(--border-soft);}',
+    '#screen-canhan .khk-pager button{height:26px;padding:0 10px;',
+    '  border:1px solid var(--border);border-radius:var(--radius-sm,6px);',
+    '  background:var(--surface);color:var(--text);font-family:inherit;font-size:12px;cursor:pointer;}',
+    '#screen-canhan .khk-pager button:hover:not([disabled]){border-color:var(--cam);color:var(--cam-ink);}',
+    '#screen-canhan .khk-pager button[disabled]{opacity:.45;cursor:default;}',
+    /* Chip loại khách cho vùng cơ cấu */
     '#screen-canhan .khk-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}',
     '#screen-canhan .khk-chip{font-size:12px;min-height:24px;display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;',
     '  border:1px solid var(--border);background:var(--surface-2);color:var(--muted);}',
@@ -321,9 +339,8 @@
     tong1DefTien = tong1.reduce(function (a, t) { return a + t.tongTien; }, 0);
     tong1DefDiem = tong1.reduce(function (a, t) { return a + t.tongDiem; }, 0);
 
-    h.push('    <div class="khk-grid">');
-
-    /* Cột ngang xếp chồng theo giá trị thuần (triệu VNĐ) */
+    /* Cột ngang xếp chồng theo giá trị thuần (triệu VNĐ) — C1 giữ toàn bộ
+       vùng lưới (donut C2 đã bỏ: thừa so với chips bên dưới + trùng màu C1) */
     h.push('      <div>');
     h.push(C ? C.box('khkC1', Math.max(240, top.length * 34 + 70),
                      'Top ' + top.length + ' khách hàng theo doanh thu',
@@ -333,11 +350,8 @@
     h.push('        ' + khoi1TongHTML());
     h.push('      </div>');
 
-    /* Vòng tròn: 3 NHÓM KHOẢN THU (giá trị thuần triệu VNĐ) */
+    /* Cơ cấu theo NHÓM KHOẢN THU (giá trị thuần triệu VNĐ) — chips */
     h.push('      <div>');
-    h.push(C ? C.box('khkC2', 240, 'Cơ cấu doanh thu theo nhóm khoản thu',
-                     'Tổng ' + n1(tongTienAll) + ' triệu VNĐ từ ' + n0(rs.length) + ' khách')
-              : '<div class="chart-empty">' + DASH + '</div>');
     h.push('        <div class="khk-chips">');
     var gN = gomNhomTien(rs);
     for (var j = 0; j < NHOM.length; j++) {
@@ -406,6 +420,9 @@
              esc(loaiTen(opts[j])) + '</option>');
     }
     h.push('      </select>');
+    h.push('      <label for="khkQ" style="margin-left:8px">Tìm</label>');
+    h.push('      <input id="khkQ" type="search" data-act="khk-q" value="' + esc(st.q) + '"' +
+           ' placeholder="Tên hoặc mã KH…" autocomplete="off">');
     h.push('    </div>');
     h.push('  </div>');
     h.push('  <div class="card-body">');
@@ -416,7 +433,8 @@
       return h.join('');
     }
 
-    var list = st.loai ? rs.filter(function (r) { return r.loai_kh === st.loai; }) : rs.slice();
+    /* Lọc Loại + Tìm (không dấu) */
+    var list = locKhk(rs);
     var k = st.sort, d = st.dir;
     list.sort(function (a, b) {
       var x = a[k], y = b[k];
@@ -428,8 +446,23 @@
 
     var maxDiem = list.reduce(function (a, r) { return Math.max(a, px(r.diem_phi)); }, 0) || 1;
 
+    /* Phân trang — chỉ hiện khi danh sách LỌC > 1 trang */
+    var soTrang = Math.max(1, Math.ceil(list.length / TRANG));
+    if (stTrang.page > soTrang) stTrang.page = soTrang;
+    var pg = stTrang.page - 1;
+    var listPage = (soTrang > 1) ? list.slice(pg * TRANG, pg * TRANG + TRANG) : list;
+    if (soTrang > 1) {
+      h.push('    <div class="khk-pager" data-khk-pager>');
+      h.push('      <span>' + esc(n0(list.length)) + ' khách · trang ' + esc(n0(stTrang.page)) + '/' + esc(n0(soTrang)) + '</span>');
+      h.push('      <button type="button" data-act="khk-trang" data-p="-1"' +
+             (stTrang.page <= 1 ? ' disabled' : '') + '>Trước</button>');
+      h.push('      <button type="button" data-act="khk-trang" data-p="1"' +
+             (stTrang.page >= soTrang ? ' disabled' : '') + '>Sau</button>');
+      h.push('    </div>');
+    }
+
     h.push('    <div class="khk-tblwrap">');
-    h.push('      <table class="khk-tbl">');
+    h.push('      <table class="table tbl-chuan khk-tbl">');
     h.push('        <thead><tr>');
     h.push('          <th>#</th>');
     h.push('          <th class="sortable" data-act="khk-sort" data-k="ho_ten" data-dir="' + (k === 'ho_ten' ? d : 0) + '">Khách hàng</th>');
@@ -441,12 +474,12 @@
     h.push('          <th class="num sortable" data-act="khk-sort" data-k="aum_trieu" data-dir="' + (k === 'aum_trieu' ? d : 0) + '">Dư nợ (tỷ VNĐ)</th>');
     h.push('          <th class="num sortable" data-act="khk-sort" data-k="diem_phi" data-dir="' + (k === 'diem_phi' ? d : 0) + '">Điểm</th>');
     h.push('        </tr></thead>');
-    h.push('        <tbody>');
-    for (var t = 0; t < list.length; t++) {
-      var r = list[t];
+    h.push('        <tbody data-khk-body>');
+    for (var t = 0; t < listPage.length; t++) {
+      var r = listPage[t];
       var aumTy = (r.aum_ty != null) ? r.aum_ty : (isNum(r.aum_trieu) ? r.aum_trieu / 1000.0 : null);
       h.push('        <tr>');
-      h.push('          <td><span class="khk-rank">' + (t + 1) + '</span></td>');
+      h.push('          <td><span class="khk-rank">' + (pg * TRANG + t + 1) + '</span></td>');
       h.push('          <td>' + esc(r.ho_ten || DASH) + ' <span class="khk-ma">' + esc(r.ma_kh || '') + '</span></td>');
       h.push('          <td>' + esc(loaiTen(r.loai_kh)) + '</td>');
       for (var q = 0; q < NHOM.length; q++) {
@@ -483,6 +516,39 @@
     return h.join('');
   }
 
+  /* Lọc Loại + Tìm — tách riêng để Tìm chỉ vẽ lại tbody/tfoot/pager
+     (veLaiKhk) mà KHÔNG innerHTML lại cả card: giữ con trỏ nhập
+     khi đang gõ (pattern dn-q của MH06). */
+  function locKhk(rs) {
+    var list = st.loai ? rs.filter(function (r) { return r.loai_kh === st.loai; }) : rs.slice();
+    if (st.q) {
+      var _a = A();
+      var _dq = (_a && typeof _a.deaccent === 'function')
+        ? _a.deaccent(st.q).toString().toLowerCase()
+        : st.q.toString().toLowerCase();
+      list = list.filter(function (r) {
+        var _s = (_a && typeof _a.deaccent === 'function')
+          ? _a.deaccent((r.ho_ten || '') + ' ' + (r.ma_kh || '')).toString().toLowerCase()
+          : ((r.ho_ten || '') + ' ' + (r.ma_kh || '')).toLowerCase();
+        return _s.indexOf(_dq) >= 0;
+      });
+    }
+    return list;
+  }
+  /* html -> Node (bỏ text node trắng do thụt lề) — như parseNode MH06 */
+  function khkNode(html) {
+    var tmp = global.document.createElement('div');
+    tmp.innerHTML = html;
+    var n = tmp.firstChild;
+    while (n && n.nodeType !== 1) n = n.nextSibling;
+    return n;
+  }
+  /* Vẽ lại bảng khi đang gõ Tìm. */
+  function veLaiKhk() {
+    var a = A();
+    if (a && typeof a.render === 'function') a.render();
+  }
+
   /* ================================ KHỐI 3 — Tăng trưởng so với kỳ trước */
   function khoi3(maMg, kyId) {
     var C = CH();
@@ -508,7 +574,10 @@
     function val(g, f) { return isNum(g && g[f]) ? g[f] : 0; }
 
     h.push('    <div class="khk-tblwrap" style="max-height:none">');
-    h.push('      <table class="khk-tbl">');
+    h.push('      <table class="table tbl-chuan khk-tbl">');
+    /* KHÔNG sortable: cột đều tính từ dữ liệu tóm tắt (tt.tong,
+       tt[nhom]) — sort theo giá trị cần map key riêng, không có
+       field thẳng trên row như bảng chi tiết. */
     h.push('        <thead><tr><th>Nhóm khoản thu</th><th class="num">Kỳ trước</th><th class="num">Kỳ này</th>' +
            '<th class="num">Chênh lệch</th><th class="num">Tăng trưởng</th></tr></thead>');
     h.push('        <tbody>');
@@ -522,14 +591,20 @@
       var ch = isNum(g.chenh_lech) ? g.chenh_lech : null;
       var tl = g.ty_le;
       var cls = (isNum(ch) && ch > 0) ? 'up' : ((isNum(ch) && ch < 0) ? 'down' : 'flat');
+      /* Mũi tên tăng/giảm: ▲ xanh (.pos) khi > 0, ▼ đỏ (.neg) khi < 0 —
+         WCAG 1.4.1: không chỉ màu, có hình dạng. Ký tự chèn trực tiếp
+         vào TD (không phải text node riêng của TH) nên innerText của
+         bảng tăng trưởng vẫn đọc được giá trị. */
+      var mCh = isNum(ch) ? (ch > 0 ? '<span class="pos">▲</span> ' : (ch < 0 ? '<span class="neg">▼</span> ' : '')) : '';
+      var mTl = (isNum(tl) && tl !== 0) ? (tl > 0 ? '<span class="pos">▲</span> ' : '<span class="neg">▼</span> ') : '';
+      var fmtCh = isNum(ch) ? (ch > 0 ? '+' : '−') + esc(n1(Math.abs(ch))) + (isTong ? ' đ' : '') : DASH;
+      var fmtTl = (tl === null || !isNum(tl)) ? '<span class="empty"></span>' : (tl > 0 ? '+' : '−') + esc(num(Math.abs(tl) * 100, 1)) + '%';
       h.push('        <tr>');
       h.push('          <td>' + esc(ten[i]) + '</td>');
       h.push('          <td class="num">' + esc(n1(tr)) + (isTong ? ' đ' : '') + '</td>');
       h.push('          <td class="num"><b>' + esc(n1(hs)) + (isTong ? ' đ' : '') + '</b></td>');
-      h.push('          <td class="num khk-delta ' + cls + '">' + (isNum(ch) ? (ch > 0 ? '+' : '') + esc(n1(ch)) + (isTong ? ' đ' : '') : DASH) + '</td>');
-      h.push('          <td class="num khk-delta ' + (isNum(tl) ? cls : 'flat') + '">' +
-             (tl === null || !isNum(tl) ? '<span class="empty"></span>' : (tl > 0 ? '+' : '') + esc(num(tl * 100, 1)) + '%') +
-             '</td>');
+      h.push('          <td class="num khk-delta ' + cls + '">' + mCh + fmtCh + '</td>');
+      h.push('          <td class="num khk-delta ' + (isNum(tl) ? cls : 'flat') + '">' + mTl + fmtTl + '</td>');
       h.push('        </tr>');
     }
     h.push('        </tbody>');
@@ -552,29 +627,25 @@
              '      <div><span class="muted small">Biến động Tổng điểm FKP: </span>' +
              '<b>' + esc(n1(trTong)) + ' đ</b> <span class="muted small">(kỳ trước)</span> → <b>' + esc(n1(hsTong)) + ' đ</b> <span class="muted small">(kỳ này)</span></div>' +
              '      <div class="khk-delta ' + clsTong + '"><b>' +
-             (isNum(chTong) ? (chTong > 0 ? '+' : '') + esc(n1(chTong)) + ' điểm' : '') +
-             (isNum(tlTong) ? ' (' + (tlTong > 0 ? '+' : '') + esc(num(tlTong * 100, 1)) + '%)' : '') +
+             (isNum(chTong) ? (chTong > 0 ? '<span class="pos">▲</span> +' : (chTong < 0 ? '<span class="neg">▼</span> −' : '')) : '') + (isNum(chTong) ? esc(n1(Math.abs(chTong))) + ' điểm' : '') +
+             (isNum(tlTong) ? ' (' + (tlTong > 0 ? '+' : '−') + esc(num(Math.abs(tlTong) * 100, 1)) + '%)' : '') +
              '</b></div>' +
              '    </div>');
     }
 
-    h.push('    <div style="margin-top:var(--sp-2,8px)">');
-    h.push(C ? C.box('khkC3', 280, 'Kỳ trước và kỳ này theo 3 nhóm khoản thu', 'Đơn vị: triệu VNĐ')
-              : '<div class="chart-empty">' + DASH + '</div>');
-    h.push('    </div>');
+    /* (biểu đồ C3 đã bỏ 28/10 — trùng hoàn toàn bảng [2] ngay trên:
+       cùng 3 nhóm khoản thu, cùng giá trị kỳ trước/kỳ này; bảng đủ
+       thông tin hơn: có chênh lệch + tăng trưởng + sortable) */
     h.push('  </div>');
     h.push('</div>');
     return h.join('');
   }
-
-  function round1(v) { return Math.round(v * 10) / 10; }
 
   /* ==================================================== vẽ biểu đồ SAU DOM */
   function ve(maMg, kyId) {
     var C = CH();
     if (!C || typeof C.isReady === 'function' && !C.isReady()) return;
     var rs = rows(maMg, kyId);
-    var tt = tongHop(maMg);
 
     /* 1a — cột ngang XẾP CHỒNG top-N theo GIÁ TRỊ THUẦN (triệu VNĐ) */
     if (rs.length) {
@@ -616,44 +687,11 @@
       }
     }
 
-    /* 1b — vòng tròn theo 3 NHÓM KHOẢN THU (giá trị thuần = triệu VNĐ) */
-    if (rs.length) {
-      var gN = gomNhomTien(rs);
-      var tongTienAll = rs.reduce(function (a, r) { return a + doanhThuTong(r); }, 0);
-      var c2 = global.document.getElementById('khkC2');
-      if (c2) {
-        try {
-          C.donut('khkC2',
-            NHOM.map(function (n) { return n.ten; }),
-            gN.map(function (v) { return Math.round(v * 100) / 100; }),
-            {
-              label: 'Doanh thu', centerText: n1(tongTienAll), centerSub: 'triệu VNĐ', unit: 'triệu VNĐ',
-              colorVar: NHOM.map(function (n) { return n.c; })
-            });
-        } catch (e) { warn('C2', e); }
-      }
-    }
+    /* (donut C2 đã bỏ — xem lịch sử commit) */
 
-    /* 3 — cột kỳ trước + đường kỳ này: so sánh 3 nhóm khoản thu theo GIÁ TRỊ THUẦN (triệu VNĐ) */
-    if (tt && tt.tong) {
-      var keys = NHOM.map(function (x) { return x.k; });
-      var ten = NHOM.map(function (x) { return x.ten; });
-      var lbl = [], b = [], l = [];
-      for (var j = 0; j < keys.length; j++) {
-        if (!tt[keys[j]]) continue;
-        lbl.push(ten[j]);
-        b.push(round1(tt[keys[j]].ky_truoc));
-        l.push(round1(tt[keys[j]].hien_tai));
-      }
-      if (global.document.getElementById('khkC3')) {
-        try {
-          C.barLine('khkC3', lbl,
-            [{ label: 'Kỳ trước', data: b, colorVar: '--chart-series-1' }],
-            [{ label: 'Kỳ này', data: l, colorVar: '--chart-series-2' }],
-            { unit: 'triệu VNĐ', maxTicks: 6 });
-        } catch (e) { warn('C3', e); }
-      }
-    }
+    /* (biểu đồ C3 đã bỏ 28/10 — trùng hoàn toàn bảng [2] ngay trên:
+       cùng 3 nhóm khoản thu, cùng giá trị kỳ trước/kỳ này; bảng đủ
+       thông tin hơn: có chênh lệch + tăng trưởng + sortable) */
   }
 
   function warn(tag, e) {
@@ -948,7 +986,7 @@
   /* ============================================================== EXPORT */
   global.CanhanKH = {
     augment: augment,     /* gọi từ ScreenCanhan.render */
-    reset: function () { st.sort = 'diem_phi'; st.dir = -1; st.loai = ''; st.top = TOP_N; },
+    reset: function () { st.sort = 'diem_phi'; st.dir = -1; st.loai = ''; st.q = ''; st.top = TOP_N; stTrang.page = 1; },
     state: st,
     _khoi1: khoi1, _khoi2: khoi2, _khoi3: khoi3, _ve: ve,   /* để kiểm chứng */
     _fmtKHC1: fmtKHC1, _tong1: function () { return tong1; }
@@ -966,12 +1004,15 @@
       var hit = t.closest('[data-act]');
       if (!hit) return;
       var act = hit.getAttribute('data-act');
-      if (act !== 'khk-sort' && act !== 'khk-loai') return;
+      if (act !== 'khk-sort' && act !== 'khk-loai' && act !== 'khk-trang') return;
       ev.preventDefault();
       ev.stopPropagation();
       if (act === 'khk-loai') {
         var lk = hit.getAttribute('data-loai') || '';
         st.loai = (st.loai === lk) ? '' : lk;
+      } else if (act === 'khk-trang') {
+        var dp = parseInt(hit.getAttribute('data-p') || '0', 10) || 0;
+        stTrang.page = Math.max(1, stTrang.page + dp);
       } else {
         var k = hit.getAttribute('data-k') || 'diem_phi';
         if (st.sort === k) st.dir = -st.dir;
@@ -984,8 +1025,20 @@
       var s = ev.target;
       if (!s || s.getAttribute && s.getAttribute('data-act') !== 'khk-loai-sel') return;
       st.loai = s.value || '';
+      stTrang.page = 1;          /* đổi lọc → về trang 1 */
       var a = A();
       if (a && typeof a.render === 'function') a.render();
+    });
+    /* Tìm KH — input event (không đợi Enter), không dấu.
+       Chỉ vẽ lại tbody + tfoot + pager, GIỮ con trỏ nhập khi đang
+       gõ (giống dn-q của MH06). */
+    root.addEventListener('input', function (ev) {
+      var s = ev.target;
+      if (!s || s.getAttribute && s.getAttribute('data-act') !== 'khk-q') return;
+      if (s.value === st.q) return;
+      st.q = s.value || '';
+      stTrang.page = 1;          /* đổi tìm → về trang 1 */
+      veLaiKhk();
     });
   }
 

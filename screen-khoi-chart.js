@@ -24,7 +24,7 @@
   'use strict';
 
   var ROOT_ID = 'screen-khoi';
-  var HOST_ID = 'khoi-chart-host';      /* <section> chứa 6 thẻ biểu đồ */
+  var HOST_ID = 'khoi-chart-host';      /* <section> chứa 4 thẻ biểu đồ (B/D/E/F) */
   var MAX_PHONG_BAR = 10;               /* khối B: tối đa 10 phòng */
   var MAX_PHONG_STACK = 8;              /* khối E: tối đa 8 phòng */
   var MAX_MG_BULLET = 6;                /* khối F: tối đa 6 môi giới */
@@ -229,41 +229,20 @@
     return { sum: t, co: co, tb: co ? t / co : null };
   }
 
-  /* ================================================================ KHỐI A
-   * Cơ cấu xếp loại A/B/C/D trong kỳ (đã lọc theo phòng nếu có).
-   * ---------------------------------------------------------------------- */
-  function blockA(d) {
-    var out = {
-      id: 'khoi-chi-xep-loai', title: 'Cơ cấu xếp loại',
-      height: 280, ok: false, data: null
-    };
-    var rows = d.rows;
-    if (!rows.length) { out.emptyMsg = 'Kỳ ' + d.kyNhan + ' không có môi giới nào để xếp loại.'; return out; }
-    var vals = XL.map(function (g) { return countXL(rows, g); });
-    out.sub = XL.join(' · ') + ' — ' + phongLabel(d.phong) + ' · kỳ ' + d.kyNhan;
-    out.legend = XL.map(function (g, i) { return { cls: 'xl-' + g, text: g + ' ' + n0(vals[i]) }; });
-    out.data = { labels: XL.slice(), values: vals, tong: rows.length };
-    out.ok = vals.some(function (v) { return v > 0; });
-    if (!out.ok) out.emptyMsg = 'Môi giới trong phạm vi lọc chưa có xếp loại A/B/C/D.';
-    out.draw = function (c) {
-      c.donut(out.id, XL.slice(), vals, {
-        colorVar: ['--a', '--b', '--c', '--d'],
-        centerText: n0(rows.length), centerSub: 'môi giới',
-        label: 'Số môi giới', unit: 'người', emptyMsg: out.emptyMsg
-      });
-    };
-    return out;
-  }
+  /* KHỐI A (donut cơ cấu xếp loại A/B/C/D) đã XÓA — trùng legend
+     bảng "Môi giới trong khối" (blockBangMG) ở screen-khoi.js. */
 
   /* ================================================================ KHỐI B
-   * Top phòng theo ĐIỂM FKP (điểm thật, không phải tỷ lệ).
+   * % hoàn thành bình quân của từng phòng — ĐƠN VỊ % (khác đơn vị
+   * điểm của bảng phòng, bổ sung thông tin mới cho bảng).
    * ---------------------------------------------------------------------- */
   function theoPhong(rows) {
     var map = {};
     (rows || []).forEach(function (r) {
       var ma = (r && r.ma_phong) || DASH;
-      var o = map[ma] || (map[ma] = { ma: ma, ten: phongTenNgan(ma), tenDayDu: phongTen(ma), diem: 0, coDiem: 0, so: 0, phi: 0, lai: 0 });
+      var o = map[ma] || (map[ma] = { ma: ma, ten: phongTenNgan(ma), tenDayDu: phongTen(ma), diem: 0, coDiem: 0, so: 0, coTyLe: 0, sumTyLe: 0, phi: 0, lai: 0 });
       o.so++;
+      if (isNum(tyLe(r))) { o.coTyLe++; o.sumTyLe += tyLe(r); }
       var v = fkpDiem(r);
       if (isNum(v)) { o.diem += v; o.coDiem++; }
       o.phi += diemPhi(r);
@@ -275,70 +254,44 @@
     var map = theoPhong(rows);
     return Object.keys(map).map(function (k) { return map[k]; });
   }
+  /* topPhong (sắp xếp theo điểm FKP) chỉ còn dùng bởi khối E;
+     khối B sắp theo tỷ lệ hoàn thành bình quân ngay trong blockB. */
   function topPhong(rows, max) {
     var list = listPhong(rows);
     list.sort(function (a, b) { return b.diem - a.diem; });
     return list.slice(0, max);
   }
   function blockB(d) {
-    var out = { id: 'khoi-top-phong-diem', title: 'Top phòng theo điểm FKP', ok: false, data: null };
-    var list = topPhong(d.rows, MAX_PHONG_BAR);
+    var out = { id: 'khoi-ty-le-bq-phong', title: 'Tỷ lệ hoàn thành bình quân theo phòng', ok: false, data: null };
+    var list = listPhong(d.rows).filter(function (p) { return p.coTyLe > 0; });
+    list.sort(function (a, b) { return (b.sumTyLe / b.coTyLe) - (a.sumTyLe / a.coTyLe); });
+    list = list.slice(0, MAX_PHONG_BAR);
     out.height = Math.max(180, Math.min(340, 70 + list.length * 42));
-    if (!list.length) { out.emptyMsg = 'Chưa có môi giới nào trong phạm vi lọc để cộng điểm FKP.'; return out; }
-    var has = list.filter(function (p) { return p.diem > 0; });
-    out.sub = 'Cộng chi_tieu FKP của các môi giới trong từng phòng · ' +
+    if (!list.length) { out.emptyMsg = 'Chưa có môi giới nào có tỷ lệ hoàn thành trong phạm vi lọc.'; return out; }
+    var vals = list.map(function (p) { return Math.round((p.sumTyLe / p.coTyLe) * 10000) / 100; });
+    out.sub = 'Bình quân % hoàn thành của các môi giới trong phòng (đơn vị %) · ' +
       phongLabel(d.phong) + ' · kỳ ' + d.kyNhan;
-    out.data = { labels: list.map(function (p) { return p.ten; }), values: list.map(function (p) { return p.diem; }) };
-    out.ok = has.length > 0;
-    if (!out.ok) out.emptyMsg = 'Kỳ ' + d.kyNhan + ' chưa có điểm FKP nào ở cấp môi giới.';
+    out.data = { labels: list.map(function (p) { return p.ten; }), values: vals };
+    out.ok = vals.some(function (v) { return v > 0; });
+    if (!out.ok) out.emptyMsg = 'Kỳ ' + d.kyNhan + ' chưa có tỷ lệ hoàn thành nào ở cấp phòng.';
     out.draw = function (c) {
       c.barNgang(out.id, out.data.labels, out.data.values, {
-        label: 'Tổng điểm FKP', colorVar: '--chart-series-1', colorVar2: '--chart-series-2',
-        maxTicks: 6, emptyMsg: out.emptyMsg
+        label: 'Tỷ lệ hoàn thành bình quân', unit: '%', kind: 'pct',
+        colorVar: '--chart-series-1', colorVar2: '--chart-series-2',
+        maxTicks: 6, emptyMsg: out.emptyMsg,
+        formatter: function (ctx) {
+          var v = n(ctx.raw);
+          return ' ' + (ctx.dataset.label || '') + ': ' + num(v, 1) + '% (' +
+            (list[ctx.dataIndex] ? list[ctx.dataIndex].tenDayDu || list[ctx.dataIndex].ten : '') + ')';
+        }
       });
     };
     return out;
   }
 
-  /* ================================================================ KHỐI C
-   * So sánh 6 kỳ (sắp theo tu_ngay tăng dần) — cột = tổng điểm FKP,
-   * đường = số môi giới đạt chuẩn (tỷ lệ ≥ 100%).
-   * ---------------------------------------------------------------------- */
-  function blockC(d) {
-    var out = { id: 'khoi-so-sanh-ky', title: 'Diễn biến theo kỳ', height: 280, ok: false, data: null };
-    var list = kys();
-    if (!list.length) { out.emptyMsg = 'KPI.danh_sach_ky chưa có kỳ nào để so sánh.'; return out; }
-    var labels = [], diem = [], dat = [], soNguoi = [];
-    list.forEach(function (k) {
-      var rows = filterPhong(rowsKy(k.ky_id), d.phong);
-      labels.push(k.nhan || k.ky_id);
-      diem.push(Math.round(sum(rows, fkpDiem).sum * 10) / 10);
-      soNguoi.push(rows.length);
-      dat.push(rows.filter(function (r) { var t = tyLe(r); return isNum(t) && t >= 1; }).length);
-    });
-    out.sub = 'Cột = tổng điểm FKP toàn khối, đường = số môi giới đạt chuẩn (≥ 100%) · ' + phongLabel(d.phong);
-    out.data = { labels: labels, diem: diem, dat: dat, soNguoi: soNguoi, kyId: d.kyId };
-    out.ok = diem.some(function (v) { return v > 0; }) || dat.some(function (v) { return v > 0; });
-    if (!out.ok) out.emptyMsg = 'Chưa có điểm FKP hay môi giới đạt chuẩn ở bất kỳ kỳ nào.';
-    out.draw = function (c) {
-      c.barLine(out.id, labels,
-        [{ label: 'Tổng điểm FKP', data: diem, colorVar: '--chart-series-1' }],
-        [{ label: 'MG đạt chuẩn', data: dat, colorVar: '--cam' }],
-        { unit: '', maxTicks: 6, emptyMsg: out.emptyMsg });
-      /* tô tím sáng cột của kỳ đang chọn bằng --brand-2 (tránh trùng màu cam với đường MG đạt chuẩn) */
-      try {
-        var inst = c.get(out.id);
-        if (inst && inst.data && inst.data.datasets && inst.data.datasets[0]) {
-          var css = c.cssVars();
-          inst.data.datasets[0].backgroundColor = labels.map(function (_, i) {
-            return css[list[i].ky_id === d.kyId ? '--brand-2' : '--chart-series-1'];
-          });
-          if (typeof inst.update === 'function') inst.update('none');
-        }
-      } catch (e) { /* tô màu lỗi không được làm mất biểu đồ */ }
-    };
-    return out;
-  }
+  /* KHỐI C (barLine diễn biến theo kỳ) đã XÓA — trùng bảng
+     "Diễn biến 6 kỳ" (blockTrendKy, đã thêm sparkline cột Tổng điểm).
+     Lọc cây đã được sửa ở đây trước khi xóa (P0). */
 
   /* ================================================================ KHỐI D
    * Phân bố tỷ lệ hoàn thành (histogram 5 khoảng).
@@ -449,7 +402,7 @@
   }
 
   var _blocks = {
-    A: blockA, B: blockB, C: blockC, D: blockD, E: blockE, F: blockF
+    B: blockB, D: blockD, E: blockE, F: blockF
   };
 
   /* ============================================================== khung HTML */
@@ -489,14 +442,11 @@
     host.className = 'grid grid-2';
     host.setAttribute('style', 'margin-top:var(--sp-4)');
     host.setAttribute('aria-label', 'Biểu đồ tương tác tổng hợp khối');
-    /* Ưu tiên chèn TRƯỚC bảng "Môi giới trong khối" để phần biểu đồ nằm cùng
-       nhóm với các bảng tổng hợp; không thấy thì append vào cuối. */
-    var bang = null, cards = root.querySelectorAll('.card');
-    for (var i = 0; i < cards.length; i++) {
-      var t = cards[i].querySelector('.card-title');
-      if (t && /môi giới trong khối/i.test(t.textContent || '')) { bang = cards[i]; break; }
-    }
-    if (bang && bang.parentNode) bang.parentNode.insertBefore(host, bang);
+    /* P2: host biểu đồ chèn NGAY SAU bảng "Môi giới trong khối"
+       (marker .khoi-charts-after do screen-khoi.js render) — bảng
+       tổng hợp được đọc trước, biểu đồ tương tác nằm phía dưới. */
+    var marker = root.querySelector('.khoi-charts-after');
+    if (marker && marker.parentNode) marker.parentNode.insertBefore(host, marker.nextSibling);
     else root.appendChild(host);
     return host;
   }
@@ -521,6 +471,7 @@
       kyId: kyId,
       kyNhan: kyNhan(kyId),
       phong: maPhong,
+      ctx: ctx,
       rows: filterPhong(rowsKyCay(kyId, ctx), maPhong)
     };
 

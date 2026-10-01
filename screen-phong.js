@@ -168,16 +168,26 @@
   }
 
   /* Sắp xếp TRONG TỪNG NHÁNH: giữ nguyên cấu trúc cây, chỉ đảo thứ tự anh em
-   * cùng cha theo tiêu chí đang chọn. Không có dữ liệu KPI thì xuống cuối. */
+   * cùng cha theo tiêu chí đang chọn. Không có dữ liệu KPI thì xuống cuối.
+   * 10 trạng thái = 5 cột × 2 chiều (header sortable có cả asc lẫn desc,
+   * select ngoài cũng phải hiện đủ để luôn khớp với UI.sort). */
   function nodeCmp(x, y) {
     var tx = x.row ? tyLe(x.row) : null;
     var ty = y.row ? tyLe(y.row) : null;
+    var dx = x.row ? diemThucTe(x.row) : null;
+    var dy = y.row ? diemThucTe(y.row) : null;
+    var cx = x.row ? diemThieu(x.row) : null;
+    var cy = y.row ? diemThieu(y.row) : null;
     switch (UI.sort) {
-      case 'tl_asc':    return cmpNum(tx, ty) || cmpTen(x, y);
-      case 'ten_asc':   return cmpTen(x, y) || cmpNum(tx, ty);
-      case 'diem_desc': return -cmpNum(x.row ? diemThucTe(x.row) : null, y.row ? diemThucTe(y.row) : null) || cmpNum(tx, ty);
-      case 'thieu_asc': return cmpNum(x.row ? diemThieu(x.row) : null, y.row ? diemThieu(y.row) : null) || cmpNum(tx, ty);
-      default:          return -cmpNum(tx, ty) || cmpTen(x, y);
+      case 'tl_desc':    return -cmpNum(tx, ty) || cmpTen(x, y);
+      case 'tl_asc':     return cmpNum(tx, ty) || cmpTen(x, y);
+      case 'ten_asc':    return cmpTen(x, y) || cmpNum(tx, ty);
+      case 'ten_desc':   return -cmpTen(x, y) || cmpNum(tx, ty);
+      case 'diem_desc':  return -cmpNum(dx, dy) || cmpNum(tx, ty);
+      case 'diem_asc':   return cmpNum(dx, dy) || cmpNum(tx, ty);
+      case 'thieu_desc': return -cmpNum(cx, cy) || cmpNum(tx, ty);
+      case 'thieu_asc':  return cmpNum(cx, cy) || cmpNum(tx, ty);
+      default:           return -cmpNum(tx, ty) || cmpTen(x, y);
     }
   }
 
@@ -463,10 +473,13 @@
     h += opt('tl_desc', 'Tỷ lệ hoàn thành giảm dần');
     h += opt('tl_asc', 'Tỷ lệ hoàn thành tăng dần');
     h += opt('ten_asc', 'Họ tên A-Z');
+    h += opt('ten_desc', 'Họ tên Z-A');
     h += opt('diem_desc', 'Tổng điểm giảm dần');
+    h += opt('diem_asc', 'Tổng điểm tăng dần');
     /* can_thieu giờ là CHÊNH LỆCH có dấu: âm = thiếu, dương = vượt. Nên "thiếu
        nhiều nhất" là giá trị âm nhất → cmpNum tăng dần vẫn đúng (nhỏ trước). */
     h += opt('thieu_asc', 'Chênh lệch thấp nhất trước');
+    h += opt('thieu_desc', 'Chênh lệch cao nhất trước');
     h += '</select></div>';
     return h;
   }
@@ -496,22 +509,41 @@
       '</div></div>';
   }
 
-  /* Bề rộng 2 cột dính trái: cột 1 giờ chứa CÂY (thụt lề theo cấp) + chức danh
-     nên cần rộng hơn mặc định 92px. Ghi đè biến CSS ngay trên thẻ <table>
-     để không phải đụng style.css. */
+  /* Hai cột dính trái (CSS .table nth-child(1)/(2)):
+     cột 1 = Cây quản lý (chức danh + thụt lề + ký hiệu nhánh),
+     cột 2 = Họ và tên. Cả hai đều rộng 190px. Ghi đè biến CSS
+     ngay trên thẻ <table> để không phải đụng style.css. */
   var COL_ID_W = '190px';
   var COL_NAME_W = '190px';
   var INDENT_PX = 18;      /* mỗi cấp thụt lề 18px */
+
+  /* Sắp xếp header: UI.sort là chuỗi kiểu 'tl_desc'. Map sang cột
+     có sortable trên header. 'ten_asc' KHÔNG có cột header sortable
+     (chỉ có trong select ngoài) → không th nào nhận mũi tên. */
+  var SORT_COLS = { tl: 'Tỷ lệ hoàn thành', diem: 'Tổng điểm', thieu: 'Chênh lệch' };
+
+  function sortDir(kind) {
+    if (UI.sort === kind + '_desc') return -1;
+    if (UI.sort === kind + '_asc') return 1;
+    return 0;
+  }
+
+  function thSort(kind, label, numCls) {
+    var d = sortDir(kind);
+    return '<th class="' + (numCls ? 'num ' : '') + 'sortable" data-sort="' + kind
+      + '" data-dir="' + d + '" scope="col">' + label + '</th>';
+  }
 
   function thead() {
     return '<thead><tr>' +
       '<th>Cây quản lý</th>' +
       '<th>Họ và tên</th>' +
-      '<th>Mã / cấp quản lý</th>' +
-      '<th class="num">Tỷ lệ hoàn thành</th>' +
-      '<th class="num">Tổng điểm / điểm chuẩn</th>' +
+      '<th>Mã MG</th>' +
+      thSort('tl', 'Tỷ lệ hoàn thành', true) +
+      thSort('diem', 'Tổng điểm (điểm)', true) +
+      '<th class="num">Điểm chuẩn (điểm)</th>' +
       '<th class="text-center">Xếp loại</th>' +
-      '<th class="num">Chênh lệch</th>' +
+      thSort('thieu', 'Chênh lệch (điểm)', true) +
       '</tr></thead>';
   }
 
@@ -535,12 +567,6 @@
     var cls = xlClass(xl);
     var pad = node.dep * INDENT_PX;
 
-    /* Nút LÁ: ghi rõ không có người dưới — không rơi về danh sách phòng,
-       không để danh sách trống lặng. */
-    var laGhi = node.la
-      ? '<div class="muted small">không có người dưới</div>'
-      : '<div class="muted small">còn ' + soNguoiDưới(ma) + ' người dưới</div>';
-
     /* Môi giới chưa có số liệu KPI kỳ này (GĐTT / GĐ Khối) — dòng cây vẫn hiện
        đủ chức danh + tên + mã, chỉ các ô số in '—'. */
     h = '<tr class="row-link" data-ma-mg="' + esc(ma) + '"'
@@ -550,25 +576,36 @@
       + ' data-cap="' + esc(r && r.cap !== null && r.cap !== undefined ? r.cap : '') + '"'
       + ' data-dep="' + node.dep + '">';
 
-    /* Cột 1 — CÂY: thụt lề theo cấp + ký hiệu nhánh + chức danh */
+    /* Cột 1 — CÂY QUẢN LÝ (dính trái): thụt lề theo cấp + ký hiệu
+       nhánh ├─/└─ + chức danh. Ký hiệu cây giờ nằm đúng cột tên
+       nó trang trí (trước đây tách riêng 1 cột 190px lãng phí). */
     h += '<td style="padding-left:' + (8 + pad) + 'px">'
-      + (treePrefix(node) ? '<span class="muted">' + treePrefix(node) + '</span>' : '')
+      + (treePrefix(node) ? '<span class="muted">' + treePrefix(node) + '</span> ' : '')
       + esc(cd) + '</td>';
-    /* Cột 2 — họ tên (dính trái) */
-    h += '<td><b class="strong">' + esc(ten) + '</b></td>';
-    /* Cột 3 — mã + cấp quản lý + ghi chú lá/nhánh */
-    h += '<td>' + esc(ma)
-      + '<div class="muted small">' + esc(nhanCapQL(node)) + '</div>'
-      + laGhi + '</td>';
+    /* Cột 2 — HỌ VÀ TÊN (dính trái): tên đậm + dòng phụ cấp quản lý
+       · hệ số cấp. (P3: tách khỏi cột mã; BỎ dòng "còn N người dưới"
+       vì trùng pill header + ghi chú cuối trang.) */
+    h += '<td><b class="strong">' + esc(ten) + '</b>'
+      + '<div class="muted small">' + esc(nhanCapQL(node)) + '</div></td>';
+    /* Cột 3 — MÃ MG (ngắn, mono) */
+    h += '<td class="mono">' + esc(ma) + '</td>';
     /* Cột 4 — tỷ lệ hoàn thành */
     h += '<td class="num">' + progressBar(tl)
       + '<div style="margin-top:3px">' + pctCell(tl, 1) + '</div></td>';
-    /* Cột 5 — tổng điểm thực tế / điểm chuẩn */
+    /* Cột 5 — tổng điểm thực tế (1 chữ số, đơn vị điểm ở header).
+       Khi KHÔNG có điểm chuẩn: in rõ "chưa có điểm chuẩn" (giữ
+       theo test MH02 — người đọc cần biết vì sao ô là '—', không
+       phải 0). */
     h += '<td class="num">' + (isNum(tt) ? num(tt, 1) : emptyCell())
-      + '<div class="muted small">' + (isNum(dc) ? 'điểm chuẩn ' + fmtNum(dc, 0) : 'chưa có điểm chuẩn') + '</div></td>';
-    /* Cột 6 — xếp loại A/B/C/D */
+      + (isNum(tt) ? ''
+         : '<div class="muted small">' + (isNum(dc) ? 'điểm chuẩn ' + fmtNum(dc, 0) : 'chưa có điểm chuẩn') + '</div>')
+      + '</td>';
+    /* Cột 6 — điểm chuẩn (in 1 chữ số cho nhất quán với tổng điểm) */
+    h += '<td class="num">' + (isNum(dc) ? num(dc, 1) : emptyCell()) + '</td>';
+    /* Cột 7 — xếp loại A/B/C/D */
     h += '<td class="text-center">' + (xl ? '<span class="badge ' + cls + '">' + esc(xl) + '</span>' : emptyCell()) + '</td>';
-    /* Cột 7 — chênh lệch: dương = vượt chuẩn (xanh), âm = thiếu (đỏ) */
+    /* Cột 8 — chênh lệch: dương = vượt chuẩn (xanh), âm = thiếu (đỏ).
+       Dấu '−' (U+2212) cho số âm, thống nhất với fmtNum. */
     h += '<td class="num' + (isNum(thieu) && thieu < -0.05 ? ' neg' : '') + '">'
       + (!isNum(thieu) ? emptyCell()
          : (Math.abs(thieu) <= 0.05 ? '<span class="pos">Đúng chuẩn</span>'
@@ -586,12 +623,6 @@
     var cd = n.cap_quan_ly || '—';
     var hs = isNum(n.he_so_cap) ? n.he_so_cap : null;
     return hs === null ? cd : (cd + ' · hệ số cấp ' + hs);
-  }
-
-  /* Số người nằm trong nhánh con trực tiếp + hậu duệ (không tính chính nó). */
-  function soNguoiDưới(ma) {
-    var list = descendants(ma) || [];
-    return Math.max(0, list.length - 1);
   }
 
   function emptyState(msg) {
@@ -631,7 +662,7 @@
     }
 
     var sub = list.length
-      ? ('Thanh dài = tỷ lệ hoàn thành; đường đứt đoạn là mốc 100% (đạt chuẩn) · ' +
+      ? ('Đơn vị: Tỷ lệ hoàn thành (%) · Tổng điểm & chênh lệch (điểm) · ' +
          fmtNum(list.length, 0) + ' môi giới có số liệu')
       : 'Chưa có số liệu tỷ lệ hoàn thành trong kỳ này';
 
@@ -815,9 +846,9 @@
     h += chartBlock(allRows);
     h += filterBar(scope.nodes);
 
-    h += '<div class="table-wrap" id="phongTableWrap">';
+    h += '<div class="table-wrap" id="phongTableWrap" style="max-height:none">';
     if (shown.length) {
-      h += '<table class="table" id="phongTable" style="--col-id-w:' + COL_ID_W
+      h += '<table class="table tbl-chuan" id="phongTable" style="--col-id-w:' + COL_ID_W
         + ';--col-name-w:' + COL_NAME_W + '">' + thead() +
         '<tbody id="phongBody">' + shown.map(rowHtml).join('') + '</tbody></table>';
     } else {
@@ -829,14 +860,12 @@
     }
     h += '</div>';
 
-    /* Ghi chú phạm vi: nói thẳng màn này lấy cây, không lấy phòng. */
+    /* Ghi chú phạm vi: gọn 1 dòng — nói thẳng màn này lấy cây, không lấy phòng. */
     h += '<p class="screen-sub" id="phongGhiChu">' + icon('info') + ' '
       + 'Phạm vi: <b>' + esc(scope.maGoc) + '</b> và '
       + fmtNum(Math.max(0, scope.nodes.length - 1), 0) + ' người dưới theo cây quản lý'
-      + (scope.node && scope.node.cap_quan_ly
-          ? ' (cấp ' + esc(scope.node.cap_quan_ly) + ')' : '')
-      + ' — KHÔNG lấy theo phòng, nên người cùng phòng nhưng ngoài nhánh quản lý sẽ không hiện. '
-      + 'Cây quản lý nằm trong HH.quan_ly (quan hệ ma_qlt / cap_below).'
+      + ' (cấp ' + esc((scope.node && scope.node.cap_quan_ly) || '—') + ')'
+      + ' — lấy theo cây (HH.quan_ly), KHÔNG lấy theo phòng.'
       + '</p>';
 
     sec.innerHTML = h;
@@ -881,6 +910,25 @@
       var t = e.target;
       if (!t || !t.closest) return;
 
+      /* Header sortable (P1): click cột số đổi chiều sắp xếp.
+         Chỉ đảo thứ tự ANH EM cùng nhánh (sortTree giữ cấu trúc cây —
+         cha luôn trên con). Cập nhật data-dir để CSS vẽ mũi tên ▲▼. */
+      var th = t.closest('th.sortable');
+      if (th && sec.contains(th)) {
+        var kind = th.getAttribute('data-sort');
+        if (kind && SORT_COLS[kind]) {
+          var cur = sortDir(kind);
+          /* Chưa sort → desc trước (giống mặc định tl_desc); đã desc → asc;
+             đã asc → quay lại mặc định tl_desc. */
+          var next = (cur === -1) ? 1 : -1;
+          UI.sort = kind + '_' + (next === 1 ? 'asc' : 'desc');
+          syncSortHead(sec);
+          resortDom(sec);
+          syncSortSelect(sec);
+        }
+        return;
+      }
+
       var chip = t.closest('.chip');
       if (chip && sec.contains(chip)) {
         var xl = chip.getAttribute('data-xl') || 'ALL';
@@ -899,9 +947,24 @@
     sec.addEventListener('change', function (e) {
       if (e.target && e.target.id === 'phongSort') {
         var v = e.target.value || 'tl_desc';
-        if (v !== UI.sort) { UI.sort = v; resortDom(sec); }
+        if (v !== UI.sort) { UI.sort = v; syncSortHead(sec); resortDom(sec); }
       }
     });
+  }
+
+  /* Đồng bộ mũi tên ▲▼ trên header sortable với UI.sort (data-dir=1/-1/0). */
+  function syncSortHead(sec) {
+    var ths = sec.querySelectorAll('#phongTable th.sortable');
+    for (var i = 0; i < ths.length; i++) {
+      var kind = ths[i].getAttribute('data-sort');
+      if (kind) ths[i].setAttribute('data-dir', String(sortDir(kind)));
+    }
+  }
+
+  /* Đồng bộ select ngoài #phongSort khi sort qua header click. */
+  function syncSortSelect(sec) {
+    var sel = sec.querySelector('#phongSort');
+    if (sel) sel.value = UI.sort;
   }
 
   window.ScreenPhong = { render: render };

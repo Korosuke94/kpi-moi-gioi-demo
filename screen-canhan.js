@@ -378,14 +378,14 @@
     var h = [];
     h.push('<tr>');
     h.push('  <td>' + esc(ct.ten) + ' <span class="muted small">(' + esc(ct.ma_chi_tieu) + ')</span></td>');
-    // Chỉ tiêu tỷ lệ lưu 0..1 trong dữ liệu — dùng *_hien_thi (đã ×100) để
-    // hiện "62,0 %" thay vì "0,6 %".
-    h.push('  <td class="num">' + esc(n0(ct.gia_tri_hien_thi)) + (ct.don_vi ? ' <span class="muted small">' + esc(ct.don_vi) + '</span>' : '') + '</td>');
-    h.push('  <td class="num">' + esc(n0(ct.chi_tieu_muc_hien_thi)) + '</td>');
+    // chỉ tiêu ty le lưu 0..1 trong dữ liệu — dùng *_hien_thi (đã ×100)
+    // để hiện "62,0%" thay vì "0,6%".
+    h.push('  <td class="num">' + esc(n0(ct.gia_tri_hien_thi)) + ' <span class="muted small">' + esc(ct.don_vi || 'triệu VNĐ') + '</span></td>');
+    h.push('  <td class="num">' + esc(n0(ct.chi_tieu_muc_hien_thi)) + ' <span class="muted small">' + esc(ct.don_vi || 'triệu VNĐ') + '</span></td>');
     h.push('  <td class="num"><b>' + esc(pct(ct.ty_le_hoan_thanh, 1)) + '</b>' + barMini(ct.ty_le_hoan_thanh) + '</td>');
     // trong_so trong data.js là TỶ LỆ 0..1 (0.80 = 80%) — in ra phần trăm.
-    h.push('  <td class="num">' + esc(pct(ct.trong_so, 0)) + '</td>');
-    h.push('  <td class="num"><b>' + esc(n2(ct.diem_nhom)) + '</b></td>');
+    h.push('  <td class="num">' + esc(pct(ct.trong_so, 0)) + ' <span class="muted small">%</span></td>');
+    h.push('  <td class="num"><b>' + esc(n2(ct.diem_nhom)) + ' <span class="muted small">đ</span></b></td>');
     h.push('  <td class="num">' + canThieuCell(ct) + '</td>');
     h.push('</tr>');
     if (subRows) h.push(subRows);
@@ -412,10 +412,11 @@
       'canhan-diem-nhom'));
     h.push('</div>');
     h.push('  </div>');
+    h.push('  <div class="card-sub" style="margin-bottom:var(--sp-2,8px)">Đơn vị: triệu VNĐ (doanh thu, dư nợ tính bằng tỷ VNĐ) · điểm FKP</div>');
     h.push('  <div class="table-wrap">');
-    h.push('    <table class="table"><thead><tr>');
+    h.push('    <table class="table tbl-chuan"><thead><tr>');
     h.push('      <th>Chỉ tiêu</th><th class="num">Thực tế</th><th class="num">Chỉ tiêu</th>');
-    h.push('      <th class="num">Tỷ lệ</th><th class="num">Trọng số</th><th class="num">Điểm nhóm</th>');
+    h.push('      <th class="num">Tỷ lệ</th><th class="num">Trọng số</th><th class="num">Điểm FKP (đ)</th>');
     h.push('      <th class="num">Chênh lệch</th>');
     h.push('    </tr></thead><tbody>');
 
@@ -458,7 +459,14 @@
     h.push('      <td class="num"><b>' + esc(pct(r.ty_le_hoan_thanh, 1)) + '</b></td>');
     // sumTs là TỔNG trọng số 0..1 -> in phần trăm ("100%"), không phải "1,00".
     h.push('      <td class="num">' + esc(pct(sumTs, 0)) + '</td>');
-    h.push('      <td class="num"><b>' + esc(n2(sumDiem)) + '</b></td>');
+    // Tổng Điểm = Σ tl×ws GỐC (chưa làm tròn) để khớp 91,0%;
+    // các ô trên in giá trị đã làm tròn nên có thể lệch 0,01.
+    var sumDiemGoc = 0;
+    for (var gi = 0; gi < list.length; gi++) {
+      var gc = list[gi];
+      if (isNum(gc.ty_le_hoan_thanh) && isNum(gc.trong_so)) sumDiemGoc += gc.ty_le_hoan_thanh * gc.trong_so;
+    }
+    h.push('      <td class="num"><b>' + esc(n2(isFinite(sumDiemGoc) && sumDiemGoc > 0 ? sumDiemGoc : sumDiem)) + '</b></td>');
     h.push('      <td class="num">' + chenhLechCell + '</td>');
     h.push('    </tr></tfoot></table>');
     h.push('  </div>');
@@ -667,6 +675,13 @@
     s.push('<text class="axis" x="' + (W - padR) + '" y="12" font-size="10" text-anchor="end">Điểm chuẩn</text>');
 
     /* cột = tỷ lệ (tong_diem) */
+    /* Đường điểm chuẩn chỉ vẽ khi điểm chuẩn THAY ĐỔI giữa các kỳ —
+       flat (cùng 1 giá trị mọi kỳ) thì vô thông tin, bỏ để tránh
+       một đường ngang lẫn vào lưới. */
+    var chThayDoi = false;
+    for (var ci = 1; ci < n; ci++) {
+      if (String(ls[ci].diem_chuan) !== String(ls[0].diem_chuan)) { chThayDoi = true; break; }
+    }
     var pts = [];
     for (var c = 0; c < n; c++) {
       var cx = padL + slot * c + slot / 2;
@@ -691,10 +706,10 @@
           '" width="' + barW + '" height="30" rx="3" fill="url(#cnNaHatch)" stroke="#cbd5e1" stroke-dasharray="3 3">' +
           '<title>' + tip + ' — chưa có dữ liệu, không hiển thị số 0</title></rect>');
       }
-      if (isNum(ch)) pts.push(cx.toFixed(1) + ',' + yC(ch).toFixed(1));
+      if (isNum(ch) && chThayDoi) pts.push(cx.toFixed(1) + ',' + yC(ch).toFixed(1));
     }
 
-    /* đường = điểm chuẩn (trục phải) */
+    /* đường = điểm chuẩn (trục phải) — chỉ khi điểm chuẩn thay đổi giữa các kỳ */
     if (pts.length) {
       s.push('<polyline fill="none" stroke="#f97316" stroke-width="2" stroke-linejoin="round" points="' + pts.join(' ') + '"/>');
       for (var p = 0; p < pts.length; p++) {
@@ -729,13 +744,12 @@
     h.push('    <div><div class="card-title">Diễn biến 6 kỳ</div>');
     h.push('      ' + fn('Cách đọc', '<div class="pop-h">Cách đọc biểu đồ 6 kỳ</div>' +
       '<div class="pop-f"><b>Cột</b> (trục trái) = tỷ lệ hoàn thành, tính bằng Thực tế ÷ Chỉ tiêu × 100.</div>' +
-      '<div class="pop-f"><b>Đường</b> (trục phải) = điểm chuẩn của kỳ đó.</div>' +
-      '<div class="pop-f">Cột vượt đường là kỳ vượt chuẩn; cột nằm dưới đường là kỳ chưa đạt.</div>',
+      '<div class="pop-f">Cột vượt chuẩn (tỷ lệ &gt; 100%) tô xanh đậm, cột dưới chuẩn tô xanh nhạt.</div>' +
+      '<div class="pop-f">Đường cam = điểm chuẩn, chỉ hiện khi điểm chuẩn thay đổi giữa các kỳ.</div>',
       'canhan-6ky') + '</div>');
     h.push('    <div class="legend">');
     h.push('      <span class="legend-item"><i class="legend-swatch" style="background:#16a34a"></i>Vượt chuẩn</span>');
     h.push('      <span class="legend-item"><i class="legend-swatch" style="background:#7dd3fc"></i>Dưới chuẩn</span>');
-    h.push('      <span class="legend-item"><i class="legend-swatch" style="background:#f97316"></i>Điểm chuẩn</span>');
     h.push('    </div>');
     h.push('  </div>');
     h.push('  <div class="card-body">');
